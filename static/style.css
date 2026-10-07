@@ -2282,6 +2282,151 @@ a {
     color: var(--forest);
 }
 
+.crop-recommendation-card > .result-card-heading h1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.crop-recommendation-card .crop-result-message {
+    margin: 8px auto 28px;
+    max-width: 680px;
+    color: #637166;
+    line-height: 1.65;
+    text-align: center;
+}
+
+.crop-result-conditions {
+    margin: 25px 0 20px;
+}
+
+.crop-result-conditions .result-card-heading {
+    margin-bottom: 12px;
+}
+
+.crop-condition-values {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+}
+
+.crop-condition-values > div {
+    min-width: 0;
+    padding: 13px 14px;
+    border: 1px solid #e4eae3;
+    border-radius: 12px;
+    background: #f8faf7;
+}
+
+.crop-condition-values dt {
+    color: #6d796f;
+    font-size: 0.76rem;
+    font-weight: 650;
+}
+
+.crop-condition-values dd {
+    margin: 5px 0 0;
+    color: var(--forest);
+    font-size: 1.02rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.crop-result-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.crop-chart-card {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #e4eae3;
+    border-radius: 14px;
+    background: #fbfcfa;
+}
+
+.crop-chart-card h2,
+.crop-feature-importance h2 {
+    margin: 0 0 16px;
+    color: var(--forest);
+    font-size: 1.02rem;
+}
+
+.crop-chart-bars {
+    display: grid;
+    gap: 12px;
+}
+
+.crop-chart-row {
+    min-width: 0;
+}
+
+.crop-chart-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    color: #536258;
+    font-size: 0.78rem;
+}
+
+.crop-chart-label strong {
+    color: var(--forest);
+    font-variant-numeric: tabular-nums;
+}
+
+.crop-chart-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e9eee8;
+}
+
+.crop-chart-track > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #6b9b57, #255a3d);
+}
+
+.crop-chart-track > .importance-bar {
+    background: linear-gradient(90deg, #b9a55b, #75652f);
+}
+
+.crop-chart-note {
+    margin: 12px 0 0;
+    color: #778278;
+    font-size: 0.74rem;
+    line-height: 1.5;
+}
+
+.crop-feature-importance {
+    margin-top: 22px;
+    padding: 18px;
+    border: 1px solid #e9e5d6;
+    border-radius: 14px;
+    background: #fcfbf6;
+}
+
+.crop-feature-importance > p {
+    margin: -7px 0 16px;
+    color: #73766a;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.crop-precautions-card {
+    border-left: 4px solid #d6a856;
+}
+
+.crop-precautions-card > p {
+    line-height: 1.7;
+}
+
 .crop-recommendation-card .crop-image-wrap {
     width: min(100%, 760px);
     max-width: 760px;
@@ -3581,6 +3726,19 @@ button:disabled {
 
     .crop-recommendation-card .crop-image {
         min-height: 220px;
+    }
+
+    .crop-condition-values {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .crop-result-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .crop-chart-card,
+    .crop-feature-importance {
+        padding: 15px;
     }
 
     .public-local-cards {
