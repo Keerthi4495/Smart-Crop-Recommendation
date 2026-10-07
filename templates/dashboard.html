@@ -1,91 +1,256 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.dashboard }}</title>
+    <title>{{ t.dashboard }} — SmartFarm</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="nav-container">
-            <a href="/" class="brand">🌱 SmartFarm</a>
-            <nav class="nav-links" aria-label="Main navigation">
-                <a class="nav-link" href="/">{{ t.home }}</a>
-                <a class="nav-link active" href="/dashboard">{{ t.dashboard }}</a>
-                <a class="nav-link" href="/weather">{{ t.weather }}</a>
-                <a class="nav-link" href="/market">{{ t.market_price }}</a>
-                <a class="nav-link" href="/chatbot">{{ t.ai_chatbot }}</a>
-                <a class="nav-link" href="/logout">{{ t.logout }}</a>
-                <div class="language-block">
-                    <span class="language-label">{{ t.language }}:</span>
-                    <div class="lang-links">
-                        <a href="/language/en">English</a>
-                        <a href="/language/te">తెలుగు</a>
-                        <a href="/language/hi">हिंदी</a>
+    {% include "_nav.html" %}
+    <main class="page-shell dashboard-page">
+        {% if is_authenticated %}
+        <section class="dashboard-welcome">
+            <div>
+                <span class="section-eyebrow">YOUR FARM AT A GLANCE</span>
+                <h1>Welcome back, {{ session.get('username', 'Farmer') }}</h1>
+                <p>Your latest crop information and practical next steps, all in one place.</p>
+            </div>
+            <a href="{{ url_for('home') }}#crop-recommendation" class="primary-btn">New crop recommendation <span aria-hidden="true">→</span></a>
+        </section>
+        {% else %}
+        <section class="dashboard-welcome public-dashboard-welcome">
+            <div>
+                <span class="section-eyebrow">SMARTFARM OVERVIEW</span>
+                <h1>Plan your next farm decision</h1>
+                <p>Explore local weather, available mandi prices, crop guidance and simple farm planning tools.</p>
+            </div>
+            <a href="{{ url_for('home') }}#crop-recommendation" class="primary-btn">Explore crop recommendations <span aria-hidden="true">→</span></a>
+        </section>
+        {% endif %}
+
+        {% if is_authenticated %}
+        <section class="dashboard-metrics" aria-label="Your farm overview">
+            <article class="dashboard-metric-card">
+                <span class="dashboard-metric-label">Recommended crop</span>
+                <strong>{{ latest[2] if latest else 'Not yet available' }}</strong>
+                <a href="{{ url_for('home') }}#crop-recommendation">Explore a crop <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="dashboard-metric-card">
+                <span class="dashboard-metric-label">Current weather</span>
+                {% if latest and latest[3] %}
+                    <strong id="dashboardWeatherValue">Loading…</strong>
+                    <span id="dashboardWeatherDetail">Fetching current weather for {{ latest[3] }}.</span>
+                {% else %}
+                    <strong id="dashboardWeatherValue" class="metric-empty">Not available</strong>
+                    <span id="dashboardWeatherDetail">Add a location to your crop recommendation to see local weather.</span>
+                {% endif %}
+                <a href="{{ url_for('weather', location=latest[3] if latest else '') }}">View weather <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="dashboard-metric-card">
+                <span class="dashboard-metric-label">Market price</span>
+                {% if latest and latest[3] %}
+                    <strong id="dashboardMarketValue">Loading…</strong>
+                    <span id="dashboardMarketDetail">Checking available mandi listings.</span>
+                {% else %}
+                    <strong id="dashboardMarketValue" class="metric-empty">Not available</strong>
+                    <span id="dashboardMarketDetail">Live market price is currently unavailable.</span>
+                {% endif %}
+                <a href="{{ url_for('market', crop_name=latest[2] if latest else '', location=latest[3] if latest else '') }}">Check market <span aria-hidden="true">↗</span></a>
+            </article>
+            <article class="dashboard-metric-card">
+                <span class="dashboard-metric-label">Profit / loss estimate</span>
+                {% if latest and latest[6] is not none %}
+                    <strong>₹{{ latest[6] }}</strong>
+                    <span>Based on your last saved estimate</span>
+                {% else %}
+                    <strong class="metric-empty">Not calculated</strong>
+                    <span>Use your own costs and expected selling price.</span>
+                {% endif %}
+                <a href="{{ url_for('profit', crop_name=latest[2] if latest else '', location=latest[3] if latest else '') }}">Estimate your costs <span aria-hidden="true">↗</span></a>
+            </article>
+        </section>
+
+        <section class="dashboard-lower-grid">
+            <div class="dashboard-panel history-panel">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-eyebrow">YOUR RECORDS</span>
+                        <h2>Recent crop history</h2>
                     </div>
+                    <a href="{{ url_for('crop_history') }}">View all <span aria-hidden="true">→</span></a>
                 </div>
-            </nav>
-        </div>
-    </header>
-
-    <main class="page-shell">
-        <div class="section-card">
-            <div class="section-header">
-                <h2>{{ t.dashboard }}</h2>
-                <p>Welcome, {{ session.get('username', 'Farmer') }}. Manage crop, soil, weather, and farm decisions.</p>
+                <div class="history-list">
+                    {% for row in history_rows %}
+                    <article class="history-row">
+                        <span class="history-crop-mark" aria-hidden="true">{{ row[2][:1] }}</span>
+                        <div class="history-main">
+                            <strong>{{ row[2] }}</strong>
+                            <span>{{ row[3] or 'Location not added' }}</span>
+                        </div>
+                        <time datetime="{{ row[1].isoformat() if row[1] else '' }}">{{ row[1].strftime("%d %b %Y") if row[1] else 'Date unavailable' }}</time>
+                    </article>
+                    {% else %}
+                    <div class="empty-state">
+                        <span aria-hidden="true">🌾</span>
+                        <strong>Your crop history will appear here</strong>
+                        <p>Save a recommendation to start building your personal farm record.</p>
+                        <a href="{{ url_for('home') }}#crop-recommendation">Make a recommendation</a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-
-            <div class="dashboard-grid">
-                <div class="dashboard-item"><a href="/"><span>🌱</span>{{ t.smart_crop_recommendation }}</a></div>
-                <div class="dashboard-item"><a href="/weather"><span>🌦</span>{{ t.weather }}</a></div>
-                <div class="dashboard-item"><a href="/market"><span>📈</span>{{ t.market_price }}</a></div>
-                <div class="dashboard-item"><a href="/profit"><span>💰</span>Profit &amp; Loss</a></div>
-                <div class="dashboard-item"><a href="/soil-report"><span>🧪</span>Soil Report</a></div>
-                <div class="dashboard-item"><a href="/fertilizer"><span>🌾</span>Fertilizer</a></div>
-                <div class="dashboard-item"><a href="/irrigation"><span>💧</span>Irrigation</a></div>
-                <div class="dashboard-item"><a href="/alternative-crops"><span>🔄</span>Alternative Crops</a></div>
-                <div class="dashboard-item"><a href="/crop-risk"><span>⚠️</span>Crop Risk</a></div>
-                <div class="dashboard-item"><a href="/chatbot"><span>🤖</span>{{ t.ai_chatbot }}</a></div>
-                <div class="dashboard-item"><a href="/crop-history"><span>📋</span>My Crop History</a></div>
+            <aside class="dashboard-panel quick-actions-panel">
+                <span class="section-eyebrow">READY WHEN YOU ARE</span>
+                <h2>Quick actions</h2>
+                <a class="quick-action" href="{{ url_for('home') }}#crop-recommendation"><span aria-hidden="true">🌱</span><span>Recommend a crop</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('weather') }}"><span aria-hidden="true">☀</span><span>Check local weather</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('market') }}"><span aria-hidden="true">↗</span><span>Look up mandi prices</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('profit') }}"><span aria-hidden="true">₹</span><span>Estimate farm costs</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('disease') }}"><span aria-hidden="true">⌕</span><span>Crop disease information</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('chatbot') }}"><span aria-hidden="true">✳</span><span>AI Assistance</span><b aria-hidden="true">↗</b></a>
+            </aside>
+        </section>
+        {% else %}
+        <section class="dashboard-public-local">
+            <div class="dashboard-panel public-location-panel">
+                <span class="section-eyebrow">LOCAL INFORMATION</span>
+                <h2>Weather and mandi prices</h2>
+                <p>Enter a location and choose a crop to check live information when the data service has a matching record.</p>
+                <form id="publicFarmInfoForm" class="public-farm-info-form">
+                    <label for="publicDashboardLocation">Village, town or district</label>
+                    <input id="publicDashboardLocation" name="location" value="{{ selected_location }}" autocomplete="address-level2" placeholder="Enter your location" required>
+                    <label for="publicDashboardCrop">Crop</label>
+                    <select id="publicDashboardCrop" name="crop">
+                        {% for crop_option in market_crops %}
+                        <option value="{{ crop_option }}" {% if selected_crop|replace(' ', '')|lower == crop_option|replace(' ', '')|lower %}selected{% endif %}>{{ crop_option }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="primary-btn">Load local information</button>
+                </form>
             </div>
+            <div class="public-local-cards">
+                <article class="dashboard-metric-card">
+                    <span class="dashboard-metric-label">Current weather</span>
+                    <strong id="dashboardWeatherValue" class="metric-empty">Choose a location</strong>
+                    <span id="dashboardWeatherDetail">Live weather data has not been requested.</span>
+                    <a href="{{ url_for('weather') }}">Open weather <span aria-hidden="true">↗</span></a>
+                </article>
+                <article class="dashboard-metric-card">
+                    <span class="dashboard-metric-label">Market price</span>
+                    <strong id="dashboardMarketValue" class="metric-empty">Choose crop &amp; location</strong>
+                    <span id="dashboardMarketDetail">Prices appear only when live mandi data is available.</span>
+                    <a href="{{ url_for('market') }}">Open market prices <span aria-hidden="true">↗</span></a>
+                </article>
+            </div>
+        </section>
 
-            {% if show_crop_history %}
-                <div class="section-header">
-                    <h2>My Crop History</h2>
-                </div>
-                <div class="table-box">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Crop</th>
-                                <th>Location</th>
-                                <th>Cost</th>
-                                <th>Revenue</th>
-                                <th>Profit/Loss</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in history_rows %}
-                                <tr>
-                                    <td>{{ row[0].strftime("%Y-%m-%d %H:%M") }}</td>
-                                    <td>{{ row[1] }}</td>
-                                    <td>{{ row[2] or "Not available" }}</td>
-                                    <td>{{ row[3] if row[3] is not none else "Not available" }}</td>
-                                    <td>{{ row[4] if row[4] is not none else "Not available" }}</td>
-                                    <td>{{ row[5] if row[5] is not none else "Not available" }}</td>
-                                </tr>
-                            {% else %}
-                                <tr>
-                                    <td colspan="6">No crop recommendations saved yet.</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </div>
+        <section class="dashboard-lower-grid public-dashboard-lower">
+            <aside class="dashboard-panel quick-actions-panel">
+                <span class="section-eyebrow">FARMING TOOLS</span>
+                <h2>Quick actions</h2>
+                <a class="quick-action" href="{{ url_for('home') }}#crop-recommendation"><span aria-hidden="true">🌱</span><span>Crop recommendation</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('disease') }}"><span aria-hidden="true">⌕</span><span>Disease detection information</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('profit') }}"><span aria-hidden="true">₹</span><span>Profit &amp; Loss estimate</span><b aria-hidden="true">↗</b></a>
+                <a class="quick-action" href="{{ url_for('chatbot') }}"><span aria-hidden="true">✳</span><span>AI Assistance</span><b aria-hidden="true">↗</b></a>
+            </aside>
+            <div class="dashboard-panel public-tips-panel">
+                <span class="section-eyebrow">FIELD NOTES</span>
+                <h2>Three useful reminders</h2>
+                <p><strong>Weather:</strong> Check rain and temperature before irrigation, sowing or spraying.</p>
+                <p><strong>Market:</strong> Mandi prices vary by location and date; confirm locally before a sale.</p>
+                <p><strong>Farm costs:</strong> Use your own costs and a realistic yield and selling-price estimate. Results are not guaranteed returns.</p>
+            </div>
+        </section>
+        {% endif %}
+        <p class="dashboard-disclaimer">Recommendations and estimates are planning aids. Check local conditions and consult an agricultural expert before making important decisions.</p>
     </main>
+
+    <script>
+        async function loadDashboardFarmInfo(crop, location) {
+            const weatherValue = document.getElementById('dashboardWeatherValue');
+            const weatherDetail = document.getElementById('dashboardWeatherDetail');
+            const marketValue = document.getElementById('dashboardMarketValue');
+            const marketDetail = document.getElementById('dashboardMarketDetail');
+            if (!weatherValue || !marketValue || !location) return;
+            weatherValue.textContent = 'Loading…';
+            weatherDetail.textContent = 'Checking weather for ' + location + '.';
+            marketValue.textContent = 'Loading…';
+            marketDetail.textContent = 'Checking matching mandi listings.';
+            try {
+                const response = await fetch('{{ url_for("recommendation_data") }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({crop: crop, location: location})
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Local information is unavailable.');
+                }
+                if (data.weather) {
+                    weatherValue.textContent = data.weather.temperature == null
+                        ? '—'
+                        : `${data.weather.temperature}°C`;
+                    weatherDetail.textContent = [
+                        data.weather.condition,
+                        data.weather.humidity == null ? null : `${data.weather.humidity}% humidity`,
+                        data.location || location
+                    ].filter(Boolean).join(' · ');
+                } else {
+                    weatherValue.textContent = 'Not available';
+                    weatherDetail.textContent = data.weather_error || 'Live weather data is currently unavailable.';
+                }
+                if (data.market) {
+                    marketValue.textContent = `₹${data.market.current_price} ${(data.market.price_unit || '₹/quintal').replace('₹', '')}`;
+                    marketDetail.textContent = [
+                        data.market.market_name,
+                        data.market.price_date || 'Date not provided',
+                        data.market.source
+                    ].filter(Boolean).join(' · ');
+                } else {
+                    marketValue.textContent = 'Not available';
+                    marketDetail.textContent = data.market_error || 'Live market price is currently unavailable.';
+                }
+            } catch (error) {
+                console.error('Dashboard weather and market lookup failed.', error);
+                weatherValue.textContent = 'Not available';
+                weatherDetail.textContent = 'Live weather data is currently unavailable.';
+                marketValue.textContent = 'Not available';
+                marketDetail.textContent = 'Live market price is currently unavailable.';
+            }
+        }
+    </script>
+
+    {% if is_authenticated and latest and latest[3] %}
+    <script>
+        const personalFarmInfo = {
+            crop: {{ latest[2] | tojson }},
+            location: {{ latest[3] | tojson }}
+        };
+    </script>
+    {% elif not is_authenticated %}
+    <script>
+        const publicForm = document.getElementById('publicFarmInfoForm');
+        const initialLocation = {{ selected_location | tojson }};
+        const initialCrop = {{ selected_crop | tojson }};
+        publicForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            loadDashboardFarmInfo(
+                document.getElementById('publicDashboardCrop').value,
+                document.getElementById('publicDashboardLocation').value.trim()
+            );
+        });
+        if (initialLocation) {
+            document.getElementById('publicDashboardCrop').value = initialCrop;
+            loadDashboardFarmInfo(initialCrop, initialLocation);
+        }
+    </script>
+    {% endif %}
+
+    <script>
+        if (typeof personalFarmInfo !== 'undefined') {
+            loadDashboardFarmInfo(personalFarmInfo.crop, personalFarmInfo.location);
+        }
+    </script>
 </body>
 </html>

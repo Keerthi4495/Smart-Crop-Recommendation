@@ -1,0 +1,34 @@
+<header class="top-nav" data-language="{{ current_language }}">
+    <div class="nav-container">
+        <a href="{{ url_for('home') }}" class="brand" aria-label="SmartFarm home">
+            <span class="brand-mark" aria-hidden="true">sf</span>
+            <span>SmartFarm<span class="brand-period">.</span></span>
+        </a>
+        <nav class="nav-links" aria-label="Main navigation">
+            <a class="nav-link{% if request.endpoint == 'home' %} active{% endif %}" href="{{ url_for('home') }}">{{ t.home }}</a>
+            <a class="nav-link{% if request.endpoint in ['dashboard', 'crop_history'] %} active{% endif %}" href="{{ url_for('dashboard') }}">{{ t.dashboard }}</a>
+            <a class="nav-link" href="{{ url_for('home') }}#crop-recommendation">Crop Recommendation</a>
+            <a class="nav-link{% if request.endpoint in ['weather', 'forecast'] %} active{% endif %}" href="{{ url_for('weather') }}">{{ t.weather }}</a>
+            <a class="nav-link{% if request.endpoint == 'market' %} active{% endif %}" href="{{ url_for('market') }}">{{ t.market_price }}</a>
+            <a class="nav-link{% if request.endpoint == 'disease' %} active{% endif %}" href="{{ url_for('disease') }}">Disease Detection</a>
+            <a class="nav-link{% if request.endpoint == 'profit' %} active{% endif %}" href="{{ url_for('profit') }}">Profit &amp; Loss</a>
+            <a class="nav-link{% if request.endpoint in ['chatbot', 'assistant'] %} active{% endif %}" href="{{ url_for('chatbot') }}">{{ t.ai_chatbot }}</a>
+            {% if session.get("user_id") %}
+                <span class="nav-user">Hi, {{ session.get("username", "Farmer") }}</span>
+                <a class="nav-link nav-auth-link" href="{{ url_for('logout') }}">{{ t.logout }}</a>
+            {% else %}
+                <a class="nav-link nav-auth-link" href="{{ url_for('login') }}">{{ t.login }}</a>
+                <a class="nav-link nav-register-link" href="{{ url_for('register') }}">{{ t.register }}</a>
+            {% endif %}
+            <details class="language-menu">
+                <summary>{{ t.language }}</summary>
+                <div class="language-options">
+                    <a href="{{ url_for('set_language', lang='en') }}">English</a>
+                    <a href="{{ url_for('set_language', lang='te') }}">తెలుగు</a>
+                    <a href="{{ url_for('set_language', lang='hi') }}">हिंदी</a>
+                </div>
+            </details>
+        </nav>
+    </div>
+</header>
+<script defer src="{{ url_for('static', filename='language.js') }}"></script>

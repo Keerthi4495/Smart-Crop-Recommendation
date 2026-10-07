@@ -1,79 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.ai_chatbot }}</title>
+    <meta name="theme-color" content="#102c20">
+    <title>{{ t.ai_chatbot }} — SmartFarm</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="nav-container">
-            <a href="/" class="brand">🌱 SmartFarm</a>
-            <nav class="nav-links" aria-label="Main navigation">
-                <a class="nav-link" href="/">{{ t.home }}</a>
-                <a class="nav-link" href="/dashboard">{{ t.dashboard }}</a>
-                <a class="nav-link" href="/weather">{{ t.weather }}</a>
-                <a class="nav-link" href="/market">{{ t.market_price }}</a>
-                <a class="nav-link active" href="/chatbot">{{ t.ai_chatbot }}</a>
-                {% if session.get("username") %}
-                    <a class="nav-link" href="/logout">{{ t.logout }} ({{ session["username"] }})</a>
-                {% else %}
-                    <a class="nav-link" href="/login">{{ t.login }}</a>
-                    <a class="nav-link" href="/register">{{ t.register }}</a>
+    {% include "_nav.html" %}
+
+    <main class="page-shell tool-page assistance-page">
+        <section class="assistance-heading">
+            <span class="section-eyebrow">SMART FARMING GUIDANCE</span>
+            <h1>{{ t.ai_chatbot }}</h1>
+            <p>{{ t.chatbot_intro }}</p>
+        </section>
+
+        {% if session.get('farm_assistant_context') %}
+        <aside class="assistance-context" aria-label="Current farm context">
+            <span aria-hidden="true">🌱</span>
+            <span>
+                <strong>{{ session.get('farm_assistant_context', {}).get('crop', '') }}</strong>
+                {% if session.get('farm_assistant_context', {}).get('location') %}
+                    · {{ session.get('farm_assistant_context', {}).get('location') }}
                 {% endif %}
-                <div class="language-block">
-                    <span class="language-label">{{ t.language }}:</span>
-                    <div class="lang-links">
-                        <a href="/language/en">English</a>
-                        <a href="/language/te">తెలుగు</a>
-                        <a href="/language/hi">हिंदी</a>
+            </span>
+            <small>Using your latest crop recommendation</small>
+        </aside>
+        {% endif %}
+
+        {% if not assistant_configured %}
+        <div class="assistance-setup-notice" role="status">{{ t.assistant_setup_note }}</div>
+        {% endif %}
+        {% if assistant_error %}
+        <div class="alert-box assistance-error" role="alert">{{ assistant_error }}</div>
+        {% endif %}
+
+        <section class="assistance-workspace">
+            <aside class="assistance-prompts">
+                <span class="section-eyebrow">QUICK QUESTIONS</span>
+                <h2>What can we help with?</h2>
+                <button type="button" class="assistance-prompt">How much water does my crop need?</button>
+                <button type="button" class="assistance-prompt">What fertilizer should I use?</button>
+                <button type="button" class="assistance-prompt">How can I improve soil fertility?</button>
+                <button type="button" class="assistance-prompt">What precautions should I take?</button>
+                <button type="button" class="assistance-prompt">How can I reduce crop disease risk?</button>
+                <p>For urgent crop health concerns, confirm symptoms with a local agriculture expert.</p>
+            </aside>
+
+            <section class="assistance-chat-panel" aria-label="{{ t.ai_chatbot }} conversation">
+                <div class="assistance-chat-header">
+                    <div>
+                        <span class="assistance-online-mark" aria-hidden="true"></span>
+                        <strong>{{ t.ai_chatbot }}</strong>
+                    </div>
+                    <form method="POST" action="{{ url_for('chatbot') }}">
+                        <button class="secondary-btn assistance-clear-btn" type="submit" name="action" value="clear">{{ t.clear_chat }}</button>
+                    </form>
+                </div>
+
+                <div class="chat-box assistance-chat-box" id="assistantConversation" aria-live="polite">
+                    {% if conversation %}
+                        {% for message in conversation %}
+                        <article class="chat-message {{ 'bot' if message.role == 'assistant' else message.role }}">
+                            <span class="chat-message-label">{{ t.ai_chatbot if message.role == 'assistant' else t.you }}</span>
+                            <p>{{ message.text }}</p>
+                        </article>
+                        {% endfor %}
+                    {% else %}
+                    <article class="chat-message bot">
+                        <span class="chat-message-label">{{ t.ai_chatbot }}</span>
+                        <p>{{ t.chatbot_intro }}</p>
+                    </article>
+                    {% endif %}
+                    <div class="assistance-loading" id="assistantLoading" role="status" hidden>
+                        <span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span>Preparing a helpful response…</span>
                     </div>
                 </div>
-            </nav>
-        </div>
-    </header>
 
-    <main class="page-shell">
-        <div class="container chatbot-container">
-            <div class="page-header">
-                <h2>{{ t.ai_chatbot }}</h2>
-            </div>
-
-            <div class="suggested-questions">
-                <form method="POST" action="/chatbot" class="inline-suggestion-form">
-                    <button type="submit" name="question" value="Which crop is best for my soil?">Which crop is best for my soil?</button>
-                    <button type="submit" name="question" value="Should I irrigate today?">Should I irrigate today?</button>
-                    <button type="submit" name="question" value="What fertilizer is needed?">What fertilizer is needed?</button>
-                    <button type="submit" name="question" value="What is today's market price?">What is today's market price?</button>
-                    <button type="submit" name="question" value="Is this crop profitable?">Is this crop profitable?</button>
+                <form method="POST" action="{{ url_for('chatbot') }}" class="chat-form assistance-chat-form" id="assistantQuestionForm">
+                    <label class="visually-hidden" for="assistantQuestion">{{ t.type_message }}</label>
+                    <input id="assistantQuestion" type="text" name="question" maxlength="2000" placeholder="{{ t.type_message }}" required>
+                    <button type="submit" class="primary-btn">{{ t.send }} <span aria-hidden="true">→</span></button>
                 </form>
-            </div>
+                <p class="assistance-safety-note">Advice is for general guidance. It cannot diagnose crop disease or guarantee yield or profit.</p>
+            </section>
+        </section>
 
-            <div class="chat-box">
-                {% if conversation %}
-                    {% for message in conversation %}
-                        <div class="chat-message {{ message.role }}">
-                            {{ message.text }}
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="chat-message bot">
-                        {{ t.chatbot_intro }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <form method="POST" action="/chatbot" class="chat-form">
-                <label>{{ t.chatbot_title }}</label>
-                <input type="text" name="question" placeholder="{{ t.type_message }}" required>
-                <button type="submit" class="primary-btn">{{ t.send }}</button>
-            </form>
-
-            <div class="page-footer">
-                <a href="/dashboard">{{ t.dashboard }}</a>
-            </div>
+        <div class="page-footer">
+            <a href="{{ url_for('dashboard') }}">{{ t.dashboard }}</a>
         </div>
     </main>
+
+    <script>
+        const assistantForm = document.getElementById('assistantQuestionForm');
+        const assistantQuestion = document.getElementById('assistantQuestion');
+        const assistantLoading = document.getElementById('assistantLoading');
+        const assistantConversation = document.getElementById('assistantConversation');
+
+        document.querySelectorAll('.assistance-prompt').forEach(function (button) {
+            button.addEventListener('click', function () {
+                assistantQuestion.value = button.textContent.trim();
+                assistantForm.requestSubmit();
+            });
+        });
+
+        assistantForm.addEventListener('submit', function () {
+            const submitButton = assistantForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            assistantLoading.hidden = false;
+            assistantConversation.scrollTop = assistantConversation.scrollHeight;
+        });
+        assistantConversation.scrollTop = assistantConversation.scrollHeight;
+    </script>
 </body>
 </html>

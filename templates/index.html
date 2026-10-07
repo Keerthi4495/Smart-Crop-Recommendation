@@ -1,139 +1,234 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.smart_crop_recommendation }}</title>
+    <meta name="theme-color" content="#102c20">
+    <meta name="description" content="Practical crop, weather, market and farm planning insights for Indian farmers.">
+    <title>SmartFarm — Smart Farming. Better Decisions.</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="nav-container">
-            <a href="/" class="brand">🌱 SmartFarm</a>
-            <nav class="nav-links" aria-label="Main navigation">
-                <a class="nav-link active" href="/">{{ t.home }}</a>
-                <a class="nav-link" href="/dashboard">{{ t.dashboard }}</a>
-                <a class="nav-link" href="/weather">{{ t.weather }}</a>
-                <a class="nav-link" href="/market">{{ t.market_price }}</a>
-                <a class="nav-link" href="/chatbot">{{ t.ai_chatbot }}</a>
-                {% if session.get("username") %}
-                    <a class="nav-link" href="/logout">{{ t.logout }} ({{ session["username"] }})</a>
-                {% else %}
-                    <a class="nav-link" href="/login">{{ t.login }}</a>
-                    <a class="nav-link" href="/register">{{ t.register }}</a>
-                {% endif %}
-                <div class="language-block">
-                    <span class="language-label">{{ t.language }}:</span>
-                    <div class="lang-links">
-                        <a href="/language/en">English</a>
-                        <a href="/language/te">తెలుగు</a>
-                        <a href="/language/hi">हिंदी</a>
-                    </div>
-                </div>
-            </nav>
-        </div>
-    </header>
+    {% include "_nav.html" %}
 
-    <main class="page-shell">
-        <section class="hero">
-            <div class="hero-copy">
-                <div class="eyebrow">Farmer-first intelligence</div>
-                <h1>Smart Farming, Better Decisions</h1>
-                <p>AI-powered crop recommendations, weather insights, market trends and farming assistance.</p>
+    <main>
+        <section class="home-hero">
+            <div class="hero-content">
+                <span class="hero-kicker"><span aria-hidden="true">✳</span> YOUR EVERYDAY FARMING COMPANION</span>
+                <h1>Smart Farming.<br><span>Better Decisions.</span></h1>
+                <p>AI-powered crop recommendations, weather insights, market information and practical farming guidance.</p>
                 <div class="hero-actions">
-                    <a href="/" class="primary-btn">Get Started</a>
+                    <a href="#crop-recommendation" class="primary-btn">Get Started <span aria-hidden="true">→</span></a>
+                    <a href="#features" class="hero-secondary-link">Explore Features <span aria-hidden="true">↓</span></a>
                 </div>
+                <div class="hero-assurance"><span aria-hidden="true">✓</span> Practical insights. Your farm, your decisions.</div>
             </div>
+            <div class="hero-caption"><span class="caption-dot"></span> Growing a more resilient tomorrow</div>
+        </section>
 
-            <div class="hero-panel">
-                <div class="panel-grid">
-                    <a class="panel-card" href="/">
-                        <div class="icon">🌱</div>
-                        <strong>Crop Recommendation</strong>
-                    </a>
-                    <a class="panel-card" href="/weather">
-                        <div class="icon">🌦</div>
-                        <strong>Weather</strong>
-                    </a>
-                    <a class="panel-card" href="/market">
-                        <div class="icon">📈</div>
-                        <strong>Market Price</strong>
-                    </a>
-                    <a class="panel-card" href="/profit">
-                        <div class="icon">💰</div>
-                        <strong>Profit &amp; Loss</strong>
-                    </a>
-                    <a class="panel-card" href="/soil-report">
-                        <div class="icon">🧪</div>
-                        <strong>Soil Analysis</strong>
-                    </a>
-                    <a class="panel-card" href="/chatbot">
-                        <div class="icon">🤖</div>
-                        <strong>AI Chatbot</strong>
-                    </a>
+        <section id="features" class="page-shell home-content">
+            <div class="section-heading-row">
+                <div>
+                    <span class="section-eyebrow">FARM SMARTER, EVERY DAY</span>
+                    <h2>Tools for every decision</h2>
                 </div>
+                <p>Clear, useful guidance to help you plan the next step on your farm.</p>
+            </div>
+            <div class="features-grid home-features">
+                <a class="feature-card" href="#crop-recommendation">
+                    <span class="feature-icon" aria-hidden="true">🌱</span>
+                    <h3>Crop Recommendation</h3>
+                    <p>Match tested soil values and growing conditions with a suitable crop.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
+                <a class="feature-card" href="{{ url_for('weather') }}">
+                    <span class="feature-icon" aria-hidden="true">☀</span>
+                    <h3>Weather</h3>
+                    <p>Check current conditions and the coming forecast for your location.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
+                <a class="feature-card" href="{{ url_for('market') }}">
+                    <span class="feature-icon" aria-hidden="true">↗</span>
+                    <h3>Market Price</h3>
+                    <p>Look up available mandi prices for a crop and nearby market area.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
+                <a class="feature-card" href="{{ url_for('profit') }}">
+                    <span class="feature-icon" aria-hidden="true">₹</span>
+                    <h3>Profit &amp; Loss</h3>
+                    <p>Estimate farm costs and compare them with a live mandi price when available.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
+                <a class="feature-card" href="{{ url_for('disease') }}">
+                    <span class="feature-icon" aria-hidden="true">⌕</span>
+                    <h3>Disease Detection</h3>
+                    <p>Share a crop photo and get clear guidance on the current tool’s limitations.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
+                <a class="feature-card" href="{{ url_for('chatbot') }}">
+                    <span class="feature-icon" aria-hidden="true">✳</span>
+                    <h3>AI Assistance</h3>
+                    <p>Get practical AI-powered farming guidance based on your crop, soil, weather and farming needs.</p>
+                    <span class="feature-arrow" aria-hidden="true">Explore <span>↗</span></span>
+                </a>
             </div>
         </section>
 
-        <section id="crop-recommendation" class="section-card form-card">
-            <div class="form-title">🌱 Smart Crop Recommendation</div>
+        <section class="page-shell home-content home-guidance" aria-labelledby="guidance-heading">
+            <div class="guidance-intro">
+                <span class="section-eyebrow">A LITTLE KNOW-HOW</span>
+                <h2 id="guidance-heading">Better informed, season by season</h2>
+                <p>Use local information as a guide, and pair it with your experience and advice from agricultural experts.</p>
+            </div>
+            <div class="guidance-grid">
+                <article class="guidance-card">
+                    <span class="guidance-number">01 / WEATHER</span>
+                    <h3>Plan around the forecast</h3>
+                    <p>Rain and temperature can affect sowing, irrigation and field work. Check local conditions before planning.</p>
+                </article>
+                <article class="guidance-card">
+                    <span class="guidance-number">02 / MARKET</span>
+                    <h3>Compare mandi information</h3>
+                    <p>Prices vary by market and date. Treat reported prices as a reference and confirm with your local mandi.</p>
+                </article>
+                <article class="guidance-card">
+                    <span class="guidance-number">03 / PROFIT &amp; LOSS</span>
+                    <h3>Keep costs in view</h3>
+                    <p>Add your actual input costs and a realistic yield estimate. The result is a planning estimate, not a guarantee.</p>
+                </article>
+            </div>
+        </section>
 
-            <div class="info-pill">🧪 Don't know your NPK values? Get your soil tested for accurate NPK values. Do not guess NPK values.</div>
-
-            <form method="POST" action="/predict">
-                <div class="form-grid">
-                    <div class="field-group">
-                        <label for="nitrogen">N</label>
-                        <input type="number" step="any" name="nitrogen" id="nitrogen" required>
+        <section id="crop-recommendation" class="page-shell recommendation-shell">
+            <div class="recommendation-intro">
+                <span class="section-eyebrow">START WITH YOUR SOIL</span>
+                <h2>Find a crop to explore</h2>
+                <p>Enter values from a soil test and local growing conditions. Location is used separately for weather and market information.</p>
+            </div>
+            <div class="section-card form-card">
+                <div class="info-pill"><span aria-hidden="true">ⓘ</span> Don't know your NPK values? Get your soil tested for accurate crop recommendation. Do not guess NPK values.</div>
+                <form method="POST" action="{{ url_for('predict') }}" id="cropRecommendationForm">
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label for="nitrogen">Nitrogen (N)</label>
+                            <input type="number" step="any" name="nitrogen" id="nitrogen" min="0.01" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="phosphorus">Phosphorus (P)</label>
+                            <input type="number" step="any" name="phosphorus" id="phosphorus" min="0.01" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="potassium">Potassium (K)</label>
+                            <input type="number" step="any" name="potassium" id="potassium" min="0.01" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="temperature">Temperature (°C)</label>
+                            <input type="number" step="any" name="temperature" id="temperature" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="humidity">Humidity (%)</label>
+                            <input type="number" step="any" name="humidity" id="humidity" min="0.01" max="100" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="ph_value">Soil pH</label>
+                            <input type="number" step="any" name="ph_value" id="ph_value" min="0.01" max="14" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="rainfall">Rainfall (mm)</label>
+                            <input type="number" step="any" name="rainfall" id="rainfall" min="0.01" required>
+                        </div>
+                        <div class="field-group location-field">
+                            <label for="recommendationLocation">Location <span>(for weather &amp; market)</span></label>
+                            <div class="location-entry">
+                                <input type="text" name="location" id="recommendationLocation" maxlength="255" autocomplete="address-level2" placeholder="Enter village, town or district" required>
+                            </div>
+                            <input type="hidden" name="latitude" id="recommendationLatitude">
+                            <input type="hidden" name="longitude" id="recommendationLongitude">
+                            <p id="recommendationLocationStatus" class="field-hint" role="status">Enter a location or detect your current location for local weather and market information.</p>
+                        </div>
                     </div>
-                    <div class="field-group">
-                        <label for="phosphorus">P</label>
-                        <input type="number" step="any" name="phosphorus" id="phosphorus" required>
+                    <div class="form-actions">
+                        <div class="recommendation-utility-actions">
+                            <button type="button" class="secondary-btn" id="useSampleValues">Use Sample Values</button>
+                            <button type="button" class="secondary-btn location-button" id="detectRecommendationLocation">Detect My Location</button>
+                        </div>
+                        <p class="sample-values-note">Sample values are for demonstration only. For accurate crop recommendation, use values from a recent soil test.</p>
+                        <button type="submit" class="primary-btn">Predict Crop <span aria-hidden="true">→</span></button>
                     </div>
-                    <div class="field-group">
-                        <label for="potassium">K</label>
-                        <input type="number" step="any" name="potassium" id="potassium" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="temperature">Temperature</label>
-                        <input type="number" step="any" name="temperature" id="temperature" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="humidity">Humidity</label>
-                        <input type="number" step="any" name="humidity" id="humidity" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="ph_value">pH Value</label>
-                        <input type="number" step="any" name="ph_value" id="ph_value" required>
-                    </div>
-                    <div class="field-group" style="grid-column: 1 / -1;">
-                        <label for="rainfall">Rainfall</label>
-                        <input type="number" step="any" name="rainfall" id="rainfall" required>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="primary-btn">Predict Crop</button>
-                    <button type="button" class="secondary-btn" onclick="fillSampleValues()">Use Sample Values</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </section>
     </main>
 
-    <footer class="site-footer">
-        SmartFarm – AI-powered assistance for better farming decisions.
-    </footer>
+    <footer class="site-footer">SmartFarm <span>·</span> Practical tools for better farming decisions.</footer>
 
     <script>
-        function fillSampleValues() {
-            document.getElementsByName("nitrogen")[0].value = 90;
-            document.getElementsByName("phosphorus")[0].value = 42;
-            document.getElementsByName("potassium")[0].value = 43;
-            document.getElementsByName("temperature")[0].value = 20;
-            document.getElementsByName("humidity")[0].value = 82;
-            document.getElementsByName("ph_value")[0].value = 6.5;
-            document.getElementsByName("rainfall")[0].value = 200;
-        }
+        const locationInput = document.getElementById('recommendationLocation');
+        const latitudeInput = document.getElementById('recommendationLatitude');
+        const longitudeInput = document.getElementById('recommendationLongitude');
+        const locationStatus = document.getElementById('recommendationLocationStatus');
+        const detectLocationButton = document.getElementById('detectRecommendationLocation');
+        const sampleValuesButton = document.getElementById('useSampleValues');
+
+        locationInput.addEventListener('input', function () {
+            latitudeInput.value = '';
+            longitudeInput.value = '';
+        });
+
+        sampleValuesButton.addEventListener('click', function () {
+            const sampleValues = {
+                nitrogen: '90',
+                phosphorus: '42',
+                potassium: '43',
+                temperature: '25.5',
+                humidity: '80',
+                ph_value: '6.5',
+                rainfall: '200'
+            };
+            Object.entries(sampleValues).forEach(function ([name, value]) {
+                document.querySelector('[name="' + name + '"]').value = value;
+            });
+            locationInput.value = 'Mandapeta, Andhra Pradesh';
+            latitudeInput.value = '';
+            longitudeInput.value = '';
+            locationStatus.textContent = 'Sample location filled for demonstration. Detect or enter your own location if preferred.';
+        });
+
+        detectLocationButton.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                locationStatus.textContent = 'Browser location is unavailable. Enter a location manually.';
+                return;
+            }
+            detectLocationButton.disabled = true;
+            locationStatus.textContent = 'Requesting your location permission…';
+            navigator.geolocation.getCurrentPosition(async function (position) {
+                latitudeInput.value = position.coords.latitude;
+                longitudeInput.value = position.coords.longitude;
+                try {
+                    const response = await fetch('{{ url_for("location_detect") }}', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({lat: position.coords.latitude, lon: position.coords.longitude})
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success && data.location) {
+                        locationInput.value = data.location;
+                        locationStatus.textContent = 'Your location was detected and will be used for local information.';
+                    } else {
+                        locationStatus.textContent = 'Your coordinates were selected but the place name could not be resolved. Enter your village, town or district to continue.';
+                    }
+                } catch (error) {
+                    locationStatus.textContent = 'Your coordinates were selected but the place name could not be resolved. Enter your village, town or district to continue.';
+                } finally {
+                    detectLocationButton.disabled = false;
+                }
+            }, function () {
+                detectLocationButton.disabled = false;
+                latitudeInput.value = '';
+                longitudeInput.value = '';
+                locationStatus.textContent = 'Location permission was not granted. Enter a location manually if you wish.';
+            }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 300000});
+        });
     </script>
 </body>
 </html>

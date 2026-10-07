@@ -7,16 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="nav-container">
-            <a href="/" class="brand">🌱 SmartFarm</a>
-            <nav class="nav-links" aria-label="Main navigation">
-                <a class="nav-link" href="/">Home</a>
-                <a class="nav-link active" href="/login">Login</a>
-                <a class="nav-link" href="/register">Register</a>
-            </nav>
-        </div>
-    </header>
+    {% include "_nav.html" %}
 
     <main class="page-shell">
         <div class="container auth-box">

@@ -7,23 +7,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="nav-container">
-            <a href="/" class="brand">🌱 SmartFarm</a>
-            <nav class="nav-links" aria-label="Main navigation">
-                <a class="nav-link" href="/">Home</a>
-                <a class="nav-link" href="/dashboard">Dashboard</a>
-                <a class="nav-link" href="/weather">Weather</a>
-                <a class="nav-link" href="/market">Market Price</a>
-                <a class="nav-link" href="/chatbot">AI Chatbot</a>
-            </nav>
-        </div>
-    </header>
+    {% include "_nav.html" %}
 
     <main class="page-shell result-page">
         <section class="result-card crop-recommendation-card">
             <div class="result-card-heading">
-                <span class="result-icon" aria-hidden="true">🌱</span>
                 <h1>{{ t.recommended_crop }}</h1>
             </div>
             {% set crop_key = (crop or '') | string | lower | trim %}
@@ -32,45 +20,108 @@
                 {% set crop_asset = 'default' %}
             {% endif %}
             {% set crop_information = {
-                'rice': {
-                    'about': 'Rice is a cereal grain grown mainly as food. It is widely cultivated in warm regions where suitable land and water are available.',
-                    'soil': 'Many soils can grow rice. Lowland rice often does well in level, heavier soil that holds water; suitability depends on the local variety and field system.',
-                    'climate': 'Warm growing weather is generally suitable. Cold conditions can harm growth.',
-                    'water': 'Rice needs dependable moisture. Water needs vary between lowland and upland systems; follow local advice on irrigation and field drainage.',
-                    'period': 'Growing and harvest time varies by variety, season, and region. Use the local crop calendar.',
-                    'precautions': 'Use clean seed, control weeds early, check fields often for pests or disease, and manage water and drainage for the local rice system.'
+                'rice': {'about': 'Rice is a cereal grown for food, often in fields where water can be carefully managed.', 'group': 'grain'},
+                'maize': {'about': 'Maize is a grain crop used for food, feed and other farm products.', 'group': 'grain'},
+                'chickpea': {'about': 'Chickpea is a pulse crop valued for its protein-rich seeds and ability to fit into crop rotations.', 'group': 'pulse'},
+                'kidneybeans': {'about': 'Kidney bean is a pulse crop grown for its edible, protein-rich beans.', 'group': 'pulse'},
+                'pigeonpeas': {'about': 'Pigeon pea is a pulse crop that can be grown as a food crop and in mixed farming systems.', 'group': 'pulse'},
+                'mothbeans': {'about': 'Moth bean is a pulse crop commonly grown in warm, relatively dry regions.', 'group': 'pulse'},
+                'mungbean': {'about': 'Mung bean is a short-season pulse crop grown for its edible green seeds.', 'group': 'pulse'},
+                'blackgram': {'about': 'Black gram is a pulse crop grown for its nutritious seeds and used in many local foods.', 'group': 'pulse'},
+                'lentil': {'about': 'Lentil is a cool-season pulse crop grown for its edible seeds.', 'group': 'pulse'},
+                'pomegranate': {'about': 'Pomegranate is a fruit-bearing shrub or small tree grown in warm regions.', 'group': 'orchard'},
+                'banana': {'about': 'Banana is a tropical fruit crop that produces bunches on a large herb-like plant.', 'group': 'orchard'},
+                'mango': {'about': 'Mango is a tropical and subtropical fruit tree grown for its edible fruit.', 'group': 'orchard'},
+                'grapes': {'about': 'Grapes are grown on vines for fresh fruit, drying and other food uses.', 'group': 'orchard'},
+                'watermelon': {'about': 'Watermelon is a warm-season vine crop grown for its water-rich fruit.', 'group': 'orchard'},
+                'muskmelon': {'about': 'Muskmelon is a warm-season vine crop grown for its sweet, aromatic fruit.', 'group': 'orchard'},
+                'apple': {'about': 'Apple is a temperate fruit tree that needs a locally suitable variety and climate.', 'group': 'orchard'},
+                'orange': {'about': 'Orange is a citrus fruit tree grown in warm areas with suitable soil and drainage.', 'group': 'orchard'},
+                'papaya': {'about': 'Papaya is a tropical fruit crop that grows on a fast-growing, soft-stemmed plant.', 'group': 'orchard'},
+                'coconut': {'about': 'Coconut is a tropical palm grown for its fruit and other useful products.', 'group': 'orchard'},
+                'cotton': {'about': 'Cotton is a warm-season crop grown for the natural fibre around its seeds.', 'group': 'fibre'},
+                'jute': {'about': 'Jute is a warm, moisture-loving fibre crop whose stems provide natural fibre.', 'group': 'fibre'},
+                'coffee': {'about': 'Coffee is a perennial crop grown for the seeds inside its fruit, often in suitable shaded highland areas.', 'group': 'perennial'}
+            } %}
+            {% set crop_precautions = {
+                'rice': 'Use clean seed and level fields carefully. Manage field water and drainage for the local rice system; monitor for weeds, stem borers and leaf disease.',
+                'maize': 'Use locally recommended seed and keep drainage clear. Inspect whorls and cobs regularly for fall armyworm and other pests; avoid water stress around flowering.',
+                'chickpea': 'Use disease-free seed and avoid sowing into waterlogged soil. Check regularly for pod borer and wilt; follow local integrated pest-management guidance.',
+                'kidneybeans': 'Use clean seed and supports where the variety needs them. Keep leaves dry where practical and check for rust, blight and aphids.',
+                'pigeonpeas': 'Use healthy seed and maintain field drainage. Inspect buds and pods for borers and monitor wilt symptoms during dry periods.',
+                'mothbeans': 'Use locally adapted seed and avoid over-irrigation. Monitor seedlings for pests and keep weeds controlled during early growth.',
+                'mungbean': 'Use healthy seed and avoid waterlogging. Check flowering plants for whitefly and pod borer; harvest promptly as pods mature.',
+                'blackgram': 'Use clean seed and good drainage. Inspect leaves and pods for yellow mosaic symptoms and insect vectors; seek local advice before treatment.',
+                'lentil': 'Use certified, locally suitable seed and avoid excess irrigation. Monitor for rust, wilt and pod borer, especially in humid weather.',
+                'pomegranate': 'Use healthy planting stock and remove fallen diseased fruit. Check for bacterial blight, fruit borers and cracking; avoid wetting foliage late in the day.',
+                'banana': 'Use disease-free suckers or tissue-culture plants and remove dead leaves safely. Keep drainage open and monitor for weevils and leaf-spot symptoms.',
+                'mango': 'Use healthy grafted plants and prune only with clean tools. Monitor new flushes and fruit for hoppers, fruit fly and anthracnose; remove fallen fruit.',
+                'grapes': 'Use healthy vines and maintain canopy airflow. Inspect clusters for mildew and rot; avoid excess nitrogen and follow locally approved spray guidance.',
+                'watermelon': 'Use healthy seed and rotate away from cucurbits where practical. Check vines for wilt and fruit fly; avoid waterlogging and handle fruit carefully.',
+                'muskmelon': 'Use healthy seed and keep leaves and fruit well ventilated. Monitor for powdery mildew and fruit fly; water at the base when practical.',
+                'apple': 'Choose a variety suited to local chill and climate conditions. Prune with clean tools and monitor for scab, aphids and fruit pests through the season.',
+                'orange': 'Use certified disease-free planting material and keep the root zone well drained. Inspect leaves and fruit for citrus canker, psyllids and scale insects.',
+                'papaya': 'Use healthy seed and avoid fields with standing water. Inspect leaves for mosaic and ringspot symptoms and manage vectors using local extension advice.',
+                'coconut': 'Use healthy seedlings and maintain drainage. Inspect palms and crowns for rhinoceros beetle and red palm weevil; remove and safely dispose of infested material.',
+                'cotton': 'Use locally approved seed and scout plants frequently. Monitor for bollworms and sucking pests; follow integrated pest-management thresholds and avoid unnecessary sprays.',
+                'jute': 'Use clean seed and keep young fields weed-free. Maintain drainage after heavy rain and inspect leaves and stems for pests and fungal spots.',
+                'coffee': 'Use locally recommended shade and pruning practices. Remove diseased berries and monitor for coffee berry borer and leaf rust; keep tools clean.'
+            } %}
+            {% set cultivation_information = {
+                'grain': {
+                    'soil': 'Use soil suited to the local variety. Rice can suit heavier, level fields with managed water; maize generally needs fertile, well-drained soil.',
+                    'climate': 'Rice and maize prefer warm growing conditions. Exact temperature ranges and seasons vary by variety and district; protect crops from damaging cold or heat.',
+                    'water': 'Keep moisture appropriate to the crop and growth stage. Rice systems may need managed standing water; maize needs reliable moisture, especially around flowering.',
+                    'irrigation': 'Check rainfall and soil moisture before watering. Keep rice water levels and drainage suited to the local system; avoid waterlogging maize.',
+                    'nutrients': 'Use a soil test to guide nutrient amounts. Apply nutrients at locally recommended times; avoid guessing fertilizer doses.',
+                    'period': 'Sowing-to-harvest time varies with variety and season. Use your local crop calendar and seed-provider guidance.',
+                    'harvest': 'Harvest when grains reach local maturity signs and moisture is suitable for storage. Dry and store grain safely.',
+                    'risks': 'Watch for weeds, pests, disease, water stress and waterlogging; risks differ between rice and maize and by season.',
+                    'precautions': 'Use healthy seed, keep drainage in order, inspect plants regularly and seek local advice when unusual symptoms appear.'
                 },
-                'maize': {
-                    'about': 'Maize, also called corn, is a cereal crop grown for grain and food, feed, and other farm uses.',
-                    'soil': 'Well-drained soil with good fertility is generally suitable. Avoid waterlogged fields.',
-                    'climate': 'Maize grows in warm weather and needs good sunlight. Frost and severe heat or moisture stress can affect growth.',
-                    'water': 'It needs steady soil moisture, especially around flowering and grain formation. Adjust irrigation to rainfall and soil moisture.',
-                    'period': 'The crop duration and harvest stage vary with variety and local season. Follow local planting and harvest guidance.',
-                    'precautions': 'Use suitable clean seed, control weeds early, keep drainage clear, and inspect leaves and stems regularly for pests or disease.'
+                'pulse': {
+                    'soil': 'Well-drained soil is generally preferred. Select a pulse variety suited to your local soil and season.',
+                    'climate': 'Pulse crops have different temperature and season needs. Lentil usually suits cooler seasons; many beans grow in warmer weather.',
+                    'water': 'Avoid prolonged dry stress during flowering and seed filling, while preventing waterlogging. Needs vary by pulse and rainfall.',
+                    'irrigation': 'Use rainfall and soil moisture to time irrigation. Follow local advice for the specific pulse; excessive water can harm roots.',
+                    'nutrients': 'Start with a soil test. Pulses can contribute nitrogen in a crop rotation, but this does not replace crop-specific soil testing or balanced nutrition.',
+                    'period': 'Crop duration differs across chickpea, beans, peas and lentils. Follow local sowing dates and variety information.',
+                    'harvest': 'Harvest when pods and seeds reach maturity for the intended use. Dry thoroughly before safe storage.',
+                    'risks': 'Watch for pod pests, leaf diseases, weeds and excess moisture. Some pulses are sensitive to waterlogging.',
+                    'precautions': 'Use locally recommended seed, rotate crops where practical, inspect plants and avoid applying pesticides without a confirmed need.'
                 },
-                'cotton': {
-                    'about': 'Cotton is a warm-season crop grown for the natural fibre around its seeds.',
-                    'soil': 'Deep, well-drained soil is generally suitable. Avoid fields where water stands for long periods.',
-                    'climate': 'It needs a warm, mostly frost-free growing season and plenty of sunlight.',
-                    'water': 'Water needs depend on rainfall, soil, and crop stage. Avoid both prolonged dry stress and waterlogging.',
-                    'period': 'Crop duration and picking time vary by variety and region; follow local agricultural guidance.',
-                    'precautions': 'Inspect plants regularly for insect pests, use clean seed, control weeds, and seek local advice if damage appears.'
+                'orchard': {
+                    'soil': 'Choose well-drained soil and a variety proven for your district. Fruit trees and vines differ in their soil and climate requirements.',
+                    'climate': 'Climate needs vary widely: tropical crops such as banana and papaya differ from temperate apple and warm-season melons.',
+                    'water': 'Young plants need careful establishment watering. Mature crop water needs depend on species, soil, season and fruiting stage.',
+                    'irrigation': 'Use soil moisture and local orchard guidance to schedule irrigation. Maintain drainage and avoid keeping roots waterlogged.',
+                    'nutrients': 'Base nutrient applications on soil testing and crop stage. Fruit crops can be harmed by both deficiency and excessive fertilizer.',
+                    'period': 'Perennial fruit trees take multiple seasons to establish; melon crops are seasonal. Variety and local climate affect the growing period.',
+                    'harvest': 'Harvest timing and maturity signs are crop- and variety-specific. Follow local market quality and safe handling guidance.',
+                    'risks': 'Possible risks include pests, fruit disease, heat, wind and irregular water. The main risks depend on the crop and local conditions.',
+                    'precautions': 'Use healthy planting material, keep the orchard or field clean, inspect plants and fruit, and ask a local expert about symptoms.'
                 },
-                'banana': {
-                    'about': 'Banana is a tropical fruit crop. Its large herb-like plant produces bunches of fruit.',
-                    'soil': 'Deep, fertile, well-drained soil is generally suitable.',
-                    'climate': 'Banana prefers warm, sunny conditions and can be damaged by cold and strong winds.',
-                    'water': 'It needs regular moisture, especially in dry weather, but roots should not remain waterlogged.',
-                    'period': 'Time to harvest depends on variety, planting material, and climate. Follow local harvest signs and advice.',
-                    'precautions': 'Use healthy planting material, keep the field clean, provide drainage, and check plants and bunches for pest or disease signs.'
+                'fibre': {
+                    'soil': 'Choose deep, suitable, well-drained soil for cotton; jute commonly needs fertile soil and dependable moisture.',
+                    'climate': 'Cotton and jute need warm growing conditions, but their water and seasonal requirements differ. Check local variety guidance.',
+                    'water': 'Avoid prolonged water stress and waterlogging. Jute generally needs dependable moisture; cotton needs water matched to crop stage.',
+                    'irrigation': 'Use rainfall and soil moisture to guide watering. Keep drainage clear and follow local advice for the selected fibre crop.',
+                    'nutrients': 'Use a soil test for nutrient decisions. Balanced nutrition should follow local recommendations for cotton or jute.',
+                    'period': 'Growing duration and picking or cutting time depend on the crop variety and local season.',
+                    'harvest': 'Pick cotton when bolls open and are dry; harvest jute stems at the locally recommended maturity for fibre quality.',
+                    'risks': 'Monitor for insect pests, disease, weeds and excess moisture. Risks vary by crop and season.',
+                    'precautions': 'Use suitable seed, inspect plants regularly, maintain drainage and follow local integrated pest-management guidance.'
                 },
-                'mango': {
-                    'about': 'Mango is a tropical and subtropical fruit tree grown for its edible fruit.',
-                    'soil': 'Well-drained soil is important. The best soil and variety depend on local conditions.',
-                    'climate': 'Mango generally suits warm, sunny conditions and may be harmed by frost.',
-                    'water': 'Young trees need suitable moisture while establishing. Established trees can tolerate some dry periods; avoid waterlogging and follow local orchard advice.',
-                    'period': 'Flowering and fruit harvest time vary by variety and region. Use local seasonal guidance.',
-                    'precautions': 'Use healthy planting material, keep the orchard clean, inspect leaves and fruit, and seek local advice for pest or disease problems.'
+                'perennial': {
+                    'soil': 'Coffee requires locally suitable, well-drained soil. Site elevation, shade and variety strongly affect performance.',
+                    'climate': 'Coffee is sensitive to local temperature, rainfall and site conditions. Confirm that the variety suits your district before planting.',
+                    'water': 'Maintain suitable moisture without waterlogging. Needs change with rainfall, shade, soil and the crop stage.',
+                    'irrigation': 'Use local coffee-growing advice and soil moisture to manage water; protect roots from poor drainage.',
+                    'nutrients': 'Use soil and leaf testing where available and follow local coffee extension guidance for fertilizer decisions.',
+                    'period': 'Coffee is a perennial crop; establishment, flowering and harvest timing depend on variety and local climate.',
+                    'harvest': 'Pick ripe fruit at the locally advised stage and use suitable post-harvest handling for quality.',
+                    'risks': 'Potential risks include unsuitable temperatures, irregular rain, poor drainage and crop-specific pests or diseases.',
+                    'precautions': 'Confirm the site and variety with a local specialist, maintain shade and drainage as advised, and monitor plants routinely.'
                 }
             } %}
             <div class="crop-image-wrap">
@@ -78,12 +129,14 @@
                     class="crop-image"
                     src="{{ url_for('static', filename='images/crops/' + crop_asset + '.jpg') }}"
                     alt="{{ crop }} crop photograph"
+                    fetchpriority="high"
                 >
             </div>
             <p class="crop-name">{{ crop }}</p>
         </section>
 
         {% set crop_info = crop_information.get(crop_key) %}
+        {% set crop_cultivation = cultivation_information.get(crop_info.group if crop_info else '') %}
         <section class="result-card">
             <div class="result-card-heading">
                 <span class="result-icon" aria-hidden="true">🌱</span>
@@ -100,8 +153,7 @@
                 <span class="result-icon" aria-hidden="true">❔</span>
                 <h2>Why was this crop recommended?</h2>
             </div>
-            <p>This crop was recommended based on the soil and environmental values you entered:
-                nitrogen, phosphorus, potassium, temperature, humidity, pH, and rainfall.
+            <p>Based on the values you entered, <strong>{{ crop }}</strong> is a suitable crop to explore. The recommendation considers nitrogen ({{ prediction_values.nitrogen }}), phosphorus ({{ prediction_values.phosphorus }}), potassium ({{ prediction_values.potassium }}), temperature ({{ prediction_values.temperature }}°C), humidity ({{ prediction_values.humidity }}%), soil pH ({{ prediction_values.ph_value }}) and rainfall ({{ prediction_values.rainfall }} mm).
                 For better accuracy, use values from a recent soil test instead of guessing NPK values.
             </p>
             <p>The recommendation does not determine the exact fertilizer requirement. Follow a soil test
@@ -114,13 +166,13 @@
                 <h2>Suitable Conditions</h2>
             </div>
             <p><strong>Soil:</strong>
-                {{ crop_info.soil if crop_info else 'Suitable soil depends on the crop and local variety. Use a soil test and local agriculture guidance.' }}
+                {{ crop_cultivation.soil if crop_cultivation else 'Suitable soil depends on the crop and local variety. Use a soil test and local agriculture guidance.' }}
             </p>
             <p><strong>Temperature and climate:</strong>
-                {{ crop_info.climate if crop_info else 'Climate needs vary by crop and variety. Check that local temperatures and seasons suit the selected seed.' }}
+                {{ crop_cultivation.climate if crop_cultivation else 'Climate needs vary by crop and variety. Check that local temperatures and seasons suit the selected seed.' }}
             </p>
             <p><strong>Water and rainfall:</strong>
-                {{ crop_info.water if crop_info else 'Water and rainfall needs depend on crop, soil, and season. Avoid overwatering and seek local irrigation advice.' }}
+                {{ crop_cultivation.water if crop_cultivation else 'Water and rainfall needs depend on crop, soil, and season. Avoid overwatering and seek local irrigation advice.' }}
             </p>
             <p><strong>Growing conditions:</strong> Provide suitable sunlight, healthy planting material, and good field drainage where appropriate.</p>
         </section>
@@ -130,8 +182,8 @@
                 <span class="result-icon" aria-hidden="true">💧</span>
                 <h2>Water &amp; Irrigation</h2>
             </div>
-            <p>{{ crop_info.water if crop_info else 'Water needs vary with the crop, soil, rainfall, and growth stage. Check soil moisture and follow local irrigation guidance.' }}</p>
-            <p>Use rainfall and soil moisture to guide watering. Avoid water stress and standing water unless the local crop system requires it.</p>
+            <p><strong>Water requirement:</strong> {{ crop_cultivation.water if crop_cultivation else 'Water needs vary with the crop, soil, rainfall, and growth stage.' }}</p>
+            <p><strong>Irrigation guidance:</strong> {{ crop_cultivation.irrigation if crop_cultivation else 'Use rainfall and soil moisture to guide watering and follow local irrigation advice.' }}</p>
         </section>
 
         <section class="result-card">
@@ -139,8 +191,8 @@
                 <span class="result-icon" aria-hidden="true">🧪</span>
                 <h2>Soil &amp; Nutrients</h2>
             </div>
-            <p>{{ crop_info.soil if crop_info else 'Soil needs differ by crop and variety. A recent soil test and local advice are the best guide.' }}</p>
-            <p>N helps leafy growth, P supports roots and early growth, and K helps plants manage water and general stress. The model does not know your exact fertilizer requirement; base fertilizer use on a soil test and local advice.</p>
+            <p><strong>Suitable soil:</strong> {{ crop_cultivation.soil if crop_cultivation else 'Soil needs differ by crop and variety. A recent soil test and local advice are the best guide.' }}</p>
+            <p><strong>Nutrient requirements:</strong> {{ crop_cultivation.nutrients if crop_cultivation else 'Use a soil test and local agricultural guidance to decide nutrient amounts; do not guess fertilizer doses.' }}</p>
         </section>
 
         <section class="result-card">
@@ -149,11 +201,12 @@
                 <h2>Growing / Harvest Information</h2>
             </div>
             <p><strong>Sunlight and climate:</strong>
-                {{ crop_info.climate if crop_info else 'Sunlight and climate needs vary by crop and variety; follow local seed and agriculture guidance.' }}
+                {{ crop_cultivation.climate if crop_cultivation else 'Sunlight and climate needs vary by crop and variety; follow local seed and agriculture guidance.' }}
             </p>
-            <p><strong>Growth and harvest:</strong>
-                {{ crop_info.period if crop_info else 'Growing period and harvest signs depend on crop variety, season, and region. Use the local crop calendar.' }}
+            <p><strong>Growing period:</strong>
+                {{ crop_cultivation.period if crop_cultivation else 'Growing period depends on crop variety, season, and region. Use the local crop calendar.' }}
             </p>
+            <p><strong>Harvest information:</strong> {{ crop_cultivation.harvest if crop_cultivation else 'Harvest maturity signs depend on crop variety and region. Use local crop-calendar guidance.' }}</p>
         </section>
 
         <section class="result-card">
@@ -161,21 +214,14 @@
                 <span class="result-icon" aria-hidden="true">⚠️</span>
                 <h2>Important Precautions</h2>
             </div>
-            <p>{{ crop_info.precautions if crop_info else 'Use healthy planting material, inspect the crop regularly, keep the field clean, and ask a local agriculture expert about unusual symptoms.' }}</p>
+            <p><strong>Common risks:</strong> {{ crop_cultivation.risks if crop_cultivation else 'Risks depend on local weather, variety and crop health. Inspect plants regularly.' }}</p>
+            <p><strong>Precautions:</strong> {{ crop_precautions.get(crop_key, crop_cultivation.precautions if crop_cultivation else 'Use healthy planting material and inspect this crop regularly for local pests and disease.') }}</p>
         </section>
 
         <section class="result-card location-card">
-            <h2>{{ t.farmer_location }}</h2>
-            <p>{{ t.location_prompt }}</p>
-            <form id="locationForm" class="result-location-form">
-                <label for="farmerLocation">{{ t.manual_location }}</label>
-                <input id="farmerLocation" name="location" type="text" autocomplete="off">
-                <div class="location-actions">
-                    <button type="button" class="secondary-button" id="useMyLocation">{{ t.use_my_location }}</button>
-                    <button type="submit">{{ t.load_farmer_information }}</button>
-                </div>
-            </form>
-            <p id="resultStatus" class="result-status" role="status">{{ t.location_required }}</p>
+            <h2>📍 {{ t.farmer_location }}</h2>
+            <p id="farmerLocationDisplay">{{ location or 'Location could not be resolved from the crop form.' }}</p>
+            <p id="resultStatus" class="result-status" role="status">Loading weather and market information for your submitted location…</p>
         </section>
 
         <section class="result-card">
@@ -211,7 +257,16 @@
                 <h2>{{ t.future_price_trend }}</h2>
             </div>
             <div id="marketTrends" class="trend-grid"></div>
-            <p class="trend-disclaimer">{{ t.trend_disclaimer }}</p>
+            <p class="trend-disclaimer">Estimated trend only, based on available recent mandi records. Future market prices are not guaranteed.</p>
+        </section>
+
+        <section class="result-card profit-tool-link">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">💰</span>
+                <h2>Plan your crop costs</h2>
+            </div>
+            <p>Estimate total cultivation cost, expected revenue and profit or loss using your own expected selling price.</p>
+            <a class="primary-btn" href="{{ url_for('profit', crop_name=crop, location=location) }}">Open Profit &amp; Loss tool <span aria-hidden="true">→</span></a>
         </section>
 
         <a href="/" class="back-link">{{ t.home_link }}</a>
@@ -221,8 +276,9 @@
         const cropName = {{ crop | tojson }};
         const historyId = {{ history_id | tojson }};
         const labels = {{ result_labels | tojson }};
-        const locationForm = document.getElementById('locationForm');
-        const locationInput = document.getElementById('farmerLocation');
+        const initialLocation = {{ (location or '') | tojson }};
+        const initialLatitude = {{ latitude | tojson }};
+        const initialLongitude = {{ longitude | tojson }};
         const statusMessage = document.getElementById('resultStatus');
 
         function addMetric(container, label, value) {
@@ -260,6 +316,7 @@
             addMetric(metrics, labels.rainfall, weather.rainfall == null ? '—' : `${weather.rainfall} mm`);
             addMetric(metrics, labels.weather_condition, weather.condition || '—');
             addMetric(metrics, labels.wind, weather.wind_speed == null ? '—' : `${weather.wind_speed} km/h`);
+            addMetric(metrics, labels.source, 'Open-Meteo');
 
             const days = weather.forecast || [];
             if (!days.length) {
@@ -301,10 +358,11 @@
             addMetric(details, labels.nearby_mandi, market.market_district
                 ? `${market.market_name}, ${market.market_district}`
                 : market.market_name || '—');
-            addMetric(details, labels.current_price, market.current_price == null ? '—' : `₹${market.current_price} / quintal`);
-            addMetric(details, labels.minimum, market.minimum_price == null ? '—' : `₹${market.minimum_price} / quintal`);
-            addMetric(details, labels.maximum, market.maximum_price == null ? '—' : `₹${market.maximum_price} / quintal`);
-            addMetric(details, labels.modal_price, market.modal_price == null ? '—' : `₹${market.modal_price} / quintal`);
+            const priceUnit = market.price_unit || '₹/quintal';
+            addMetric(details, labels.current_price, market.current_price == null ? '—' : `₹${market.current_price} ${priceUnit.replace('₹', '').trim()}`);
+            addMetric(details, labels.minimum, market.minimum_price == null ? '—' : `₹${market.minimum_price} ${priceUnit.replace('₹', '').trim()}`);
+            addMetric(details, labels.maximum, market.maximum_price == null ? '—' : `₹${market.maximum_price} ${priceUnit.replace('₹', '').trim()}`);
+            addMetric(details, labels.modal_price, market.modal_price == null ? '—' : `₹${market.modal_price} ${priceUnit.replace('₹', '').trim()}`);
             addMetric(details, labels.last_updated, market.price_date || '—');
             addMetric(details, labels.source, market.source || '—');
             renderTrends(market);
@@ -345,9 +403,13 @@
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || labels.location_required);
                 }
-                statusMessage.textContent = data.location || location;
+                const resolvedLocation = data.location || data.location_label || location;
+                document.getElementById('farmerLocationDisplay').textContent = resolvedLocation || 'Browser location selected';
+                statusMessage.textContent = resolvedLocation
+                    ? `Weather and market information for ${resolvedLocation}.`
+                    : 'Live weather and market information is unavailable for the selected location.';
                 renderWeather(data.weather, data.weather_error);
-                renderMarket(data.market, data.market_error, data.location || location);
+                renderMarket(data.market, data.market_error, resolvedLocation);
             } catch (error) {
                 console.error('Could not load weather and market data for this recommendation.', error);
                 statusMessage.textContent = 'Weather and market data could not be loaded. Please try again or enter another location.';
@@ -356,35 +418,19 @@
             }
         }
 
-        locationForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            const location = locationInput.value.trim();
-            if (!location) {
-                statusMessage.textContent = labels.location_required;
-                return;
-            }
-            loadFarmerInformation(location, null);
-        });
-
-        document.getElementById('useMyLocation').addEventListener('click', function () {
-            if (!navigator.geolocation) {
-                statusMessage.textContent = labels.location_required;
-                return;
-            }
-            statusMessage.textContent = labels.location_prompt;
-            navigator.geolocation.getCurrentPosition(function (position) {
-                const coordinates = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                };
-                locationInput.value = '';
-                loadFarmerInformation('', coordinates);
-            }, function () {
-                statusMessage.textContent = labels.location_required;
-            }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 300000});
-        });
-
         renderTrends(null, labels.location_required);
+        if (initialLatitude !== null && initialLongitude !== null) {
+            loadFarmerInformation(initialLocation, {
+                latitude: initialLatitude,
+                longitude: initialLongitude
+            });
+        } else if (initialLocation) {
+            loadFarmerInformation(initialLocation, null);
+        } else {
+            statusMessage.textContent = 'No location was submitted on the crop form.';
+            renderWeather(null, labels.weather_unavailable);
+            renderMarket(null, labels.market_unavailable, '');
+        }
     </script>
 </body>
 </html>

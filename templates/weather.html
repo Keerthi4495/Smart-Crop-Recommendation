@@ -1,116 +1,195 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
-    <title>Weather</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#102c20">
+    <title>Weather — SmartFarm</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="top-nav">
-        <a href="/">Home</a>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/weather">Weather</a>
-        <a href="/market">Market Price</a>
-        <a href="/chatbot">AI Chatbot</a>
-        <a href="/logout">Logout</a>
-    </div>
+    {% include "_nav.html" %}
 
-    <div class="container">
+    <main class="page-shell tool-page weather-page weather-decision-page">
         <div class="page-header">
-            <h2>Weather</h2>
+            <span class="section-eyebrow">LOCAL CONDITIONS FOR BETTER PLANNING</span>
+            <h1>Weather &amp; Farming Advice</h1>
+            <p>Use local weather to help plan field work. Advice is based on the latest available conditions, not a guarantee of crop success.</p>
         </div>
 
-        <div id="locationDisplay" class="success-box" style="display:none;"></div>
-
-        <form method="POST" action="/weather">
-            <label>Location:</label>
-            <input type="text" name="location" placeholder="Enter Location Manually" value="{{ request.form.get('location', '') }}">
-            <button type="button" class="secondary-button" id="useLocationBtn">Use My Location</button>
-            <button type="submit">Check Weather</button>
-        </form>
-
         {% if error_message %}
-            <div class="alert-box">{{ error_message }}</div>
+            <div class="alert-box weather-page-error" role="status">{{ error_message }}</div>
+            {% if not recommendation.get('location') %}
+            <div class="weather-empty-action">
+                <span aria-hidden="true">🌱</span>
+                <p>To use your saved location, first submit a crop recommendation with a location.</p>
+                <a class="primary-btn" href="{{ url_for('home') }}#crop-recommendation">Go to Crop Recommendation <span aria-hidden="true">→</span></a>
+            </div>
+            {% endif %}
         {% endif %}
 
         {% if weather_result %}
-        <div class="weather-box success-box">
-            <strong>{{ weather_result.location }}</strong>
-            <p><strong>Temperature:</strong> {{ weather_result.temperature }}°C</p>
-            <p><strong>Humidity:</strong> {{ weather_result.humidity }}%</p>
-            <p><strong>Rainfall:</strong> {{ weather_result.rainfall }} mm</p>
-            <p><strong>Wind Speed:</strong> {{ weather_result.wind_speed }} km/h</p>
-            <p><strong>Condition:</strong> {{ weather_result.condition }}</p>
-        </div>
+        <section class="weather-location-banner">
+            <span class="weather-location-icon" aria-hidden="true">📍</span>
+            <div>
+                <span class="section-eyebrow">WEATHER FOR YOUR SAVED LOCATION</span>
+                <strong>{{ weather_result.location }}</strong>
+                {% if recommendation.get('crop') %}
+                <span>Your latest recommended crop: <b>{{ recommendation.crop }}</b></span>
+                {% endif %}
+            </div>
+            <small>{{ weather_result.date or '' }}</small>
+        </section>
+
+        <section class="weather-section-block" aria-labelledby="weather-today-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">RIGHT NOW</span>
+                <h2 id="weather-today-title">Today's Weather</h2>
+            </div>
+            <div class="weather-current-grid">
+                <article class="weather-current-card weather-current-primary">
+                    <span class="weather-card-icon" aria-hidden="true">{{ weather_result.icon or '🌤️' }}</span>
+                    <span class="weather-metric-label">Temperature</span>
+                    <strong>{{ weather_result.temperature if weather_result.temperature is not none else '—' }}<small>°C</small></strong>
+                    <span class="weather-current-condition">{{ weather_result.condition or 'Condition unavailable' }}</span>
+                </article>
+                <article class="weather-current-card">
+                    <span class="weather-card-icon" aria-hidden="true">💧</span>
+                    <span class="weather-metric-label">Humidity</span>
+                    <strong>{{ weather_result.humidity if weather_result.humidity is not none else '—' }}<small>%</small></strong>
+                    <span class="weather-current-condition">Current air moisture</span>
+                </article>
+                <article class="weather-current-card">
+                    <span class="weather-card-icon" aria-hidden="true">🌧️</span>
+                    <span class="weather-metric-label">Rainfall today</span>
+                    <strong>{{ weather_result.today_rainfall if weather_result.today_rainfall is not none else '—' }}<small>mm</small></strong>
+                    <span class="weather-current-condition">Reported daily total</span>
+                </article>
+                <article class="weather-current-card">
+                    <span class="weather-card-icon" aria-hidden="true">🌬️</span>
+                    <span class="weather-metric-label">Wind speed</span>
+                    <strong>{{ weather_result.wind_speed if weather_result.wind_speed is not none else '—' }}<small>km/h</small></strong>
+                    <span class="weather-current-condition">Current wind</span>
+                </article>
+                <article class="weather-current-card">
+                    <span class="weather-card-icon" aria-hidden="true">☁️</span>
+                    <span class="weather-metric-label">Cloud / condition</span>
+                    <strong class="weather-condition-value">{{ weather_result.condition or 'Unavailable' }}</strong>
+                    <span class="weather-current-condition">Current conditions</span>
+                </article>
+                <article class="weather-current-card">
+                    <span class="weather-card-icon" aria-hidden="true">☔</span>
+                    <span class="weather-metric-label">Rain probability</span>
+                    <strong>{{ weather_result.today_rain_chance if weather_result.today_rain_chance is not none else '—' }}<small>{% if weather_result.today_rain_chance is not none %}%{% endif %}</small></strong>
+                    <span class="weather-current-condition">{% if weather_result.today_rain_chance is not none %}Chance of rain today{% else %}Not available{% endif %}</span>
+                </article>
+            </div>
+        </section>
+
+        {% if recommendation.get('crop') and recommended_crop_assessment %}
+        <section class="weather-recommended-crop-card" aria-labelledby="recommended-weather-title">
+            <div class="weather-recommended-crop-copy">
+                <span class="section-eyebrow">YOUR CROP RECOMMENDATION</span>
+                <h2 id="recommended-weather-title">Your Recommended Crop: {{ recommendation.crop }}</h2>
+                <p>This checks today's weather only. Soil, crop variety, growth stage, water access, and field conditions also matter.</p>
+            </div>
+            <div class="weather-suitability-badge weather-suitability-{{ recommended_crop_assessment.level|lower|replace(' ', '-') }}">
+                <span>Today's weather</span>
+                <strong>{{ recommended_crop_assessment.level }}</strong>
+                <small>{{ recommended_crop_assessment.reason }}</small>
+            </div>
+        </section>
         {% endif %}
 
-        {% if weather_result and weather_result.forecast %}
-        <div class="table-box">
-            <h3>Forecast</h3>
-            <table>
-                <tr>
-                    <th>Date</th>
-                    <th>Weather</th>
-                    <th>Max</th>
-                    <th>Min</th>
-                    <th>Rain %</th>
-                </tr>
-                {% for day in weather_result.forecast %}
-                <tr>
-                    <td>{{ day.date }}</td>
-                    <td>{{ day.condition }}</td>
-                    <td>{{ day.max_temp }}°C</td>
-                    <td>{{ day.min_temp }}°C</td>
-                    <td>{{ day.rain_chance }}%</td>
-                </tr>
+        <section class="weather-advisory-card" aria-labelledby="sowing-suitability-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">A WEATHER-ONLY CHECK</span>
+                <h2 id="sowing-suitability-title">Is Today's Weather Suitable for Sowing?</h2>
+            </div>
+            <div class="weather-sowing-verdict weather-suitability-{{ sowing_assessment.level|lower|replace(' ', '-') }}">
+                <span class="weather-verdict-icon" aria-hidden="true">{% if sowing_assessment.level == 'Generally Suitable' %}✓{% elif sowing_assessment.level == 'Moderately Suitable' %}~{% else %}!{% endif %}</span>
+                <strong>{{ sowing_assessment.level }}</strong>
+            </div>
+            <ul class="weather-reason-list">
+                {% for reason in sowing_assessment.reasons %}
+                <li>{{ reason }}</li>
                 {% endfor %}
-            </table>
-        </div>
+            </ul>
+            <p class="weather-advisory-footnote">This is general decision support, not a guarantee. Check your soil, crop variety, water availability, local sowing calendar, and field conditions before planting.</p>
+        </section>
+
+        <section class="weather-section-block" aria-labelledby="weather-crops-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">BASED ON TODAY'S WEATHER</span>
+                <h2 id="weather-crops-title">Crops Suitable for Today's Weather</h2>
+                <p>These are broad weather matches, not crop recommendations. Soil, season, variety, water access, and field conditions also matter.</p>
+            </div>
+            <div class="weather-crop-grid">
+                {% for item in crop_assessments %}
+                <article class="weather-crop-card">
+                    <div class="weather-crop-card-heading">
+                        <h3>{{ item.crop }}</h3>
+                        <span class="weather-suitability-chip weather-suitability-{{ item.level|lower|replace(' ', '-') }}">{{ item.level }}</span>
+                    </div>
+                    <p>{{ item.reason }}</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="weather-advice-section" aria-labelledby="farming-advice-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">PRACTICAL NEXT STEPS</span>
+                <h2 id="farming-advice-title">Today's Farming Advice</h2>
+            </div>
+            <div class="weather-advice-list">
+                {% for item in farming_advice %}
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">{% if loop.index == 1 %}🌱{% elif loop.index == 2 %}💧{% elif loop.index == 3 %}🌬️{% else %}🧪{% endif %}</span>
+                    <p>{{ item }}</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="weather-section-block" aria-labelledby="weather-outlook-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">PLAN AHEAD</span>
+                <h2 id="weather-outlook-title">Next 5 Days Crop Weather Outlook</h2>
+                <p>Forecast effects are general. Check updates before making field decisions.</p>
+            </div>
+            {% if forecast_outlook %}
+            <div class="forecast-cards weather-forecast-cards weather-outlook-grid">
+                {% for day in forecast_outlook %}
+                <article class="forecast-day-card weather-forecast-card weather-outlook-card">
+                    <h3>{{ day.weekday or day.date }}</h3>
+                    <span class="weather-forecast-icon" aria-hidden="true">{{ day.icon or '🌤️' }}</span>
+                    <p class="weather-forecast-condition">{{ day.condition or '—' }}</p>
+                    <div class="weather-outlook-metrics">
+                        <span>High <b>{{ day.max_temp if day.max_temp is not none else '—' }}°C</b></span>
+                        <span>Low <b>{{ day.min_temp if day.min_temp is not none else '—' }}°C</b></span>
+                        <span>Rain <b>{{ day.rain_chance if day.rain_chance is not none else '—' }}{% if day.rain_chance is not none %}%{% endif %}</b></span>
+                        <span>Rainfall <b>{{ day.rainfall if day.rainfall is not none else '—' }}{% if day.rainfall is not none %} mm{% endif %}</b></span>
+                    </div>
+                    {% if day.warning %}<p class="weather-warning" role="note">{{ day.warning }}</p>{% endif %}
+                    <p class="weather-crop-impact">{{ day.crop_impact }}</p>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="weather-empty-forecast" role="status">
+                <span aria-hidden="true">📅</span>
+                <p>Forecast data unavailable</p>
+                <small>No forecast values are shown when the weather service has not returned them.</small>
+            </div>
+            {% endif %}
+        </section>
+        <p class="source-note weather-source-note">Weather data source: Open-Meteo. Suitability and farming advice are general guidance based on available weather readings, not a guarantee of crop success.</p>
         {% endif %}
 
         <div class="page-footer">
-            <a href="/dashboard">Back to Dashboard</a>
+            <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
         </div>
-    </div>
-
-    <script>
-        const locationDisplay = document.getElementById('locationDisplay');
-        const locationInput = document.querySelector('input[name="location"]');
-
-        document.getElementById('useLocationBtn').addEventListener('click', function () {
-            if (!navigator.geolocation) {
-                alert('Browser location is not available. Please enter a city manually.');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(function (position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-
-                fetch('/location-detect', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ lat: lat, lon: lon })
-                })
-                .then(function (response) {
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data.success && data.location) {
-                        locationInput.value = data.location;
-                        locationDisplay.textContent = data.display;
-                        locationDisplay.style.display = 'block';
-                    } else {
-                        alert('Location could not be detected. Please type the city manually.');
-                    }
-                })
-                .catch(function () {
-                    alert('Location could not be detected. Please type the city manually.');
-                });
-            }, function () {
-                alert('Location permission was denied. Please enter a city manually.');
-            });
-        });
-    </script>
+    </main>
 </body>
 </html>

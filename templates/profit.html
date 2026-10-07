@@ -1,43 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
-    <title>Profit Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profit &amp; Loss — SmartFarm</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="top-nav">
-        <a href="/">Home</a>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/profit">Profit</a>
-    </div>
+    {% include "_nav.html" %}
+    <main class="page-shell tool-page">
+        <section class="tool-intro">
+            <span class="section-eyebrow">PLAN WITH YOUR OWN NUMBERS</span>
+            <h1>Profit &amp; Loss</h1>
+            <p>Estimate cultivation costs and expected returns using your own selling price. This planning estimate is not a guarantee.</p>
+        </section>
 
-    <div class="container">
-        <h2>Profit Calculator</h2>
+        <section class="section-card profit-calculator">
+            <div class="profit-disclaimer"><span aria-hidden="true">ⓘ</span> Live mandi information is an optional reference. You can calculate your estimate with your own expected selling price even when market data is unavailable.</div>
+            {% if form_error %}<div class="alert-box" role="alert">{{ form_error }}</div>{% endif %}
+            <form method="POST" action="{{ url_for('profit') }}">
+                {% if latest %}<input type="hidden" name="history_id" value="{{ latest[0] }}">{% endif %}
+                <div class="form-grid profit-input-grid">
+                    <div class="field-group">
+                        <label for="profitCrop">Crop</label>
+                        <input type="text" id="profitCrop" name="crop_name" value="{{ crop_name }}" placeholder="For example, Rice" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="profitLocation">Location / district <span>(for optional mandi price)</span></label>
+                        <input type="text" id="profitLocation" name="location" value="{{ location }}" placeholder="Enter your village, town or district">
+                    </div>
+                    <div class="field-group">
+                        <label for="landArea">Land area (acres)</label>
+                        <input type="number" id="landArea" name="land_area" min="0.01" step="any" value="{{ land_area if land_area else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="expectedYield">Expected yield for this land (kg)</label>
+                        <input type="number" id="expectedYield" name="expected_yield_kg" min="0" step="any" value="{{ expected_yield_kg if expected_yield_kg is not none else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="expectedSellingPrice">Expected selling price (₹ per kg)</label>
+                        <input type="number" id="expectedSellingPrice" name="expected_selling_price" min="0" step="any" value="{{ expected_selling_price if expected_selling_price is not none else '' }}" placeholder="Enter your expected price">
+                        <span class="field-hint">Enter your own price, or use the optional live mandi reference below.</span>
+                    </div>
+                    <div class="field-group">
+                        <label for="seedCost">Seed cost (₹)</label>
+                        <input type="number" id="seedCost" name="seed_cost" min="0" step="any" value="{{ seed_cost if seed_cost else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="fertilizerCost">Fertilizer cost (₹)</label>
+                        <input type="number" id="fertilizerCost" name="fertilizer_cost" min="0" step="any" value="{{ fertilizer_cost if fertilizer_cost else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="labourCost">Labour cost (₹)</label>
+                        <input type="number" id="labourCost" name="labour_cost" min="0" step="any" value="{{ labour_cost if labour_cost else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="irrigationCost">Irrigation cost (₹)</label>
+                        <input type="number" id="irrigationCost" name="irrigation_cost" min="0" step="any" value="{{ irrigation_cost if irrigation_cost else '' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="otherExpenses">Other costs (₹)</label>
+                        <input type="number" id="otherExpenses" name="other_expenses" min="0" step="any" value="{{ other_expenses if other_expenses else '' }}" required>
+                    </div>
+                </div>
 
-        <form method="POST" action="/profit">
-            <label>Expected Yield (kg):</label>
-            <input type="number" step="any" name="yield_kg" required>
+                {% if market_data %}
+                <aside class="live-price-reference">
+                    <div>
+                        <strong>Live mandi reference</strong>
+                        <span>₹{{ market_data.current_price }} {{ (market_data.price_unit or '₹/quintal')|replace('₹', '') }} · {{ market_data.market_name }}{% if market_data.price_date %} · {{ market_data.price_date }}{% endif %}</span>
+                        <small>{{ market_data.source }}</small>
+                    </div>
+                    {% if market_price_per_kg is not none %}
+                    <button type="button" class="secondary-btn" id="useLivePrice" data-price="{{ market_price_per_kg }}">Use live price</button>
+                    {% endif %}
+                </aside>
+                {% else %}
+                <p class="market-reference-status" role="status">{{ market_message or 'Live market price is temporarily unavailable. Enter your expected selling price to continue.' }}</p>
+                {% endif %}
 
-            <label>Price per kg (₹):</label>
-            <input type="number" step="any" name="price_per_kg" required>
+                <div class="form-actions">
+                    <button type="submit" class="primary-btn">Calculate estimate <span aria-hidden="true">→</span></button>
+                </div>
+            </form>
+        </section>
 
-            <label>Total Cost (₹):</label>
-            <input type="number" step="any" name="total_cost" required>
-
-            <button type="submit">Calculate Profit</button>
-        </form>
-
-        {% if income is not none %}
-        <div class="success-box">
-            <strong>Total Income: ₹{{ income }}</strong>
-        </div>
-        <p><strong>Profit:</strong> ₹{{ profit_value }}</p>
+        {% if total_cost is not none %}
+        <section class="profit-results" aria-live="polite">
+            <h2>Your estimate</h2>
+            <div class="profit-result-grid">
+                <article class="profit-result-card">
+                    <span>Total cultivation cost</span>
+                    <strong>₹{{ "%.2f"|format(total_cost) }}</strong>
+                    <small>Seeds + fertilizer + labour + irrigation + other costs</small>
+                </article>
+                <article class="profit-result-card">
+                    <span>Expected revenue</span>
+                    {% if income is not none %}
+                        <strong>₹{{ "%.2f"|format(income) }}</strong>
+                        <small>{{ expected_yield_kg }} kg × ₹{{ "%.2f"|format(expected_selling_price) }} per kg</small>
+                    {% else %}
+                        <strong class="metric-empty">Enter selling price</strong>
+                        <small>{{ form_error or 'Revenue needs your expected selling price per kg.' }}</small>
+                    {% endif %}
+                </article>
+                <article class="profit-result-card">
+                    <span>Estimated profit / loss</span>
+                    {% if profit_value is not none %}
+                        <strong class="{% if profit_value < 0 %}loss-value{% endif %}">₹{{ "%.2f"|format(profit_value) }}</strong>
+                        <small>Expected revenue − total cultivation cost. Estimate only.</small>
+                    {% else %}
+                        <strong class="metric-empty">Not calculated</strong>
+                        <small>Enter a selling price to complete this estimate.</small>
+                    {% endif %}
+                </article>
+            </div>
+            <div class="cost-factor-note"><strong>Main cost factors</strong><span>Seed, fertilizer, labour, irrigation and other expenses you entered. Actual costs and returns may vary.</span></div>
+        </section>
         {% endif %}
-
-        <div class="page-footer">
-            <a href="/dashboard">Back to Dashboard</a>
-        </div>
-    </div>
+    </main>
+    <script>
+        const useLivePrice = document.getElementById('useLivePrice');
+        if (useLivePrice) {
+            useLivePrice.addEventListener('click', function () {
+                document.getElementById('expectedSellingPrice').value = useLivePrice.dataset.price;
+            });
+        }
+    </script>
 </body>
 </html>
