@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Soil Report</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/weather">Weather</a>
+        <a href="/market">Market Price</a>
+        <a href="/chatbot">AI Chatbot</a>
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Upload Soil Test Report</h2>
+        </div>
+
+        <form method="POST" action="/soil-report" enctype="multipart/form-data">
+            <label>Choose soil test file:</label>
+            <input type="file" name="soil_report" accept=".pdf,.txt,.csv" required>
+            <button type="submit">Upload and Read</button>
+        </form>
+
+        {% if message %}
+        <div class="alert-box">{{ message }}</div>
+        {% endif %}
+
+        {% if extracted_values %}
+        <div class="success-box">
+            <strong>Extracted Soil Values</strong>
+            <ul>
+                {% if extracted_values.nitrogen is defined %}<li>N: {{ extracted_values.nitrogen }}</li>{% endif %}
+                {% if extracted_values.phosphorus is defined %}<li>P: {{ extracted_values.phosphorus }}</li>{% endif %}
+                {% if extracted_values.potassium is defined %}<li>K: {{ extracted_values.potassium }}</li>{% endif %}
+                {% if extracted_values.ph is defined %}<li>pH: {{ extracted_values.ph }}</li>{% endif %}
+                {% if extracted_values.organic_carbon is defined %}<li>Organic Carbon: {{ extracted_values.organic_carbon }}%</li>{% endif %}
+            </ul>
+            <p>For accurate NPK values, use a laboratory soil test.</p>
+        </div>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

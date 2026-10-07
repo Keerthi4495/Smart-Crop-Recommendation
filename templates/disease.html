@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/disease">Disease Detection</a>
+    </div>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>Crop and Leaf Disease Detection</h2>
+            <p>Upload a clear photo of the affected crop or leaf.</p>
+        </div>
+
+        {% if upload_error %}
+        <div class="alert-box" role="alert">{{ upload_error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/disease" enctype="multipart/form-data">
+            <h3>1. Take or upload a photo</h3>
+            <input class="visually-hidden" id="leafPhotoUpload" name="photo" type="file"
+                   accept="image/jpeg,image/png,image/webp">
+            <input class="visually-hidden" id="leafPhotoCamera" name="photo" type="file"
+                   accept="image/jpeg,image/png,image/webp" capture="environment">
+
+            <div class="form-actions">
+                <label class="primary-btn" for="leafPhotoUpload">Upload Leaf/Crop Photo</label>
+                <label class="secondary-btn" for="leafPhotoCamera">Take Photo</label>
+            </div>
+
+            <p class="small-note">JPEG, PNG, or WebP image; maximum size 8 MB.</p>
+
+            <div id="leafPhotoPreviewWrap" class="crop-image-wrap" hidden>
+                <img id="leafPhotoPreview" class="crop-image" alt="Selected crop or leaf photo preview">
+            </div>
+
+            <h3>2. AI Disease Detection</h3>
+            <div class="form-actions">
+                <button class="action-btn" type="submit">Detect Disease</button>
+            </div>
+        </form>
+
+        {% if detection_status %}
+        <section class="success-box" aria-live="polite">
+            <h3>3. Crop and disease result</h3>
+            <p>{{ detection_status }}</p>
+            <p><strong>🌿 Crop:</strong> Not identified</p>
+            <p><strong>🦠 Disease:</strong> Not identified</p>
+            <p><strong>📊 Confidence:</strong> Not available</p>
+
+            <h3>4. Symptoms</h3>
+            <p>Symptoms and possible causes cannot be identified reliably without a trained disease model.</p>
+
+            <h3>Precautions</h3>
+            <p>No disease-specific precautions can be provided without a reliable diagnosis.</p>
+
+            <h3>5. Step-by-step management guidance</h3>
+            <ol>
+                <li>Ask a local agricultural expert or agriculture department to examine the affected plant.</li>
+                <li>Share the photo and describe when the symptoms first appeared and how they have changed.</li>
+                <li>Follow the expert's guidance after the cause has been confirmed.</li>
+                <li>Do not apply a pesticide based on an unverified diagnosis. If a product is recommended, follow its
+                    label and local expert guidance.</li>
+            </ol>
+        </section>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </main>
+
+    <script>
+        const uploadPicker = document.getElementById('leafPhotoUpload');
+        const cameraPicker = document.getElementById('leafPhotoCamera');
+        const previewWrap = document.getElementById('leafPhotoPreviewWrap');
+        const previewImage = document.getElementById('leafPhotoPreview');
+        let previewUrl = null;
+
+        function showSelectedPhoto(event, otherPicker) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            otherPicker.value = '';
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrl = URL.createObjectURL(file);
+            previewImage.src = previewUrl;
+            previewImage.alt = `Preview of ${file.name}`;
+            previewWrap.hidden = false;
+        }
+
+        uploadPicker.addEventListener('change', function (event) {
+            showSelectedPhoto(event, cameraPicker);
+        });
+        cameraPicker.addEventListener('change', function (event) {
+            showSelectedPhoto(event, uploadPicker);
+        });
+    </script>
+</body>
+</html>

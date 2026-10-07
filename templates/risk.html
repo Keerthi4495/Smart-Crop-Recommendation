@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Crop Risk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/crop-risk">Crop Risk</a>
+    </div>
+
+    <div class="container">
+        <h2>Crop Risk Information</h2>
+
+        <form method="POST" action="/crop-risk">
+            <label>Crop:</label>
+            <input type="text" name="crop_name" placeholder="Example: Cotton" required>
+
+            <label>Temperature:</label>
+            <input type="number" step="any" name="temperature" required>
+
+            <label>Humidity:</label>
+            <input type="number" step="any" name="humidity" required>
+
+            <label>Rainfall:</label>
+            <input type="number" step="any" name="rainfall" required>
+
+            <button type="submit">Check Crop Risk</button>
+        </form>
+
+        {% if risk %}
+        <div class="success-box">
+            <strong>Risk Level: {{ risk }}</strong>
+        </div>
+        <p>{{ note }}</p>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

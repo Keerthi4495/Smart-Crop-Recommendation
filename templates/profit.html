@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Profit Calculator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/profit">Profit</a>
+    </div>
+
+    <div class="container">
+        <h2>Profit Calculator</h2>
+
+        <form method="POST" action="/profit">
+            <label>Expected Yield (kg):</label>
+            <input type="number" step="any" name="yield_kg" required>
+
+            <label>Price per kg (₹):</label>
+            <input type="number" step="any" name="price_per_kg" required>
+
+            <label>Total Cost (₹):</label>
+            <input type="number" step="any" name="total_cost" required>
+
+            <button type="submit">Calculate Profit</button>
+        </form>
+
+        {% if income is not none %}
+        <div class="success-box">
+            <strong>Total Income: ₹{{ income }}</strong>
+        </div>
+        <p><strong>Profit:</strong> ₹{{ profit_value }}</p>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

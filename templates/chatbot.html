@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.ai_chatbot }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="brand">🌱 SmartFarm</a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a class="nav-link" href="/">{{ t.home }}</a>
+                <a class="nav-link" href="/dashboard">{{ t.dashboard }}</a>
+                <a class="nav-link" href="/weather">{{ t.weather }}</a>
+                <a class="nav-link" href="/market">{{ t.market_price }}</a>
+                <a class="nav-link active" href="/chatbot">{{ t.ai_chatbot }}</a>
+                {% if session.get("username") %}
+                    <a class="nav-link" href="/logout">{{ t.logout }} ({{ session["username"] }})</a>
+                {% else %}
+                    <a class="nav-link" href="/login">{{ t.login }}</a>
+                    <a class="nav-link" href="/register">{{ t.register }}</a>
+                {% endif %}
+                <div class="language-block">
+                    <span class="language-label">{{ t.language }}:</span>
+                    <div class="lang-links">
+                        <a href="/language/en">English</a>
+                        <a href="/language/te">తెలుగు</a>
+                        <a href="/language/hi">हिंदी</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-shell">
+        <div class="container chatbot-container">
+            <div class="page-header">
+                <h2>{{ t.ai_chatbot }}</h2>
+            </div>
+
+            <div class="suggested-questions">
+                <form method="POST" action="/chatbot" class="inline-suggestion-form">
+                    <button type="submit" name="question" value="Which crop is best for my soil?">Which crop is best for my soil?</button>
+                    <button type="submit" name="question" value="Should I irrigate today?">Should I irrigate today?</button>
+                    <button type="submit" name="question" value="What fertilizer is needed?">What fertilizer is needed?</button>
+                    <button type="submit" name="question" value="What is today's market price?">What is today's market price?</button>
+                    <button type="submit" name="question" value="Is this crop profitable?">Is this crop profitable?</button>
+                </form>
+            </div>
+
+            <div class="chat-box">
+                {% if conversation %}
+                    {% for message in conversation %}
+                        <div class="chat-message {{ message.role }}">
+                            {{ message.text }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="chat-message bot">
+                        {{ t.chatbot_intro }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <form method="POST" action="/chatbot" class="chat-form">
+                <label>{{ t.chatbot_title }}</label>
+                <input type="text" name="question" placeholder="{{ t.type_message }}" required>
+                <button type="submit" class="primary-btn">{{ t.send }}</button>
+            </form>
+
+            <div class="page-footer">
+                <a href="/dashboard">{{ t.dashboard }}</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

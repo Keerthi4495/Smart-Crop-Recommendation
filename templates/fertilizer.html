@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fertilizer Recommendation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/fertilizer">Fertilizer</a>
+    </div>
+
+    <div class="container">
+        <h2>Fertilizer Recommendation</h2>
+
+        <form method="POST" action="/fertilizer">
+            <label>Crop:</label>
+            <input type="text" name="crop_name" placeholder="Example: Rice" required>
+
+            <label>Nitrogen (N):</label>
+            <input type="number" step="any" name="nitrogen" required>
+
+            <label>Phosphorus (P):</label>
+            <input type="number" step="any" name="phosphorus" required>
+
+            <label>Potassium (K):</label>
+            <input type="number" step="any" name="potassium" required>
+
+            <label>pH Value:</label>
+            <input type="number" step="any" name="ph_value" required>
+
+            <button type="submit">Get Recommendation</button>
+        </form>
+
+        {% if recommendation %}
+        <div class="success-box">
+            <strong>{{ recommendation }}</strong>
+        </div>
+        <p>{{ reason }}</p>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

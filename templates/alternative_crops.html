@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Alternative Crops</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/alternative-crops">Alternative Crops</a>
+    </div>
+
+    <div class="container">
+        <h2>Alternative Crop Recommendation</h2>
+
+        <form method="POST" action="/alternative-crops">
+            <label>Crop Name:</label>
+            <input type="text" name="crop_name" placeholder="Example: Rice" required>
+            <button type="submit">Show Alternatives</button>
+        </form>
+
+        {% if suggestions %}
+        <div class="success-box">
+            <strong>Suggested alternatives:</strong>
+            <ul>
+                {% for crop in suggestions %}
+                    <li>{{ crop }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.dashboard }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="brand">🌱 SmartFarm</a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a class="nav-link" href="/">{{ t.home }}</a>
+                <a class="nav-link active" href="/dashboard">{{ t.dashboard }}</a>
+                <a class="nav-link" href="/weather">{{ t.weather }}</a>
+                <a class="nav-link" href="/market">{{ t.market_price }}</a>
+                <a class="nav-link" href="/chatbot">{{ t.ai_chatbot }}</a>
+                <a class="nav-link" href="/logout">{{ t.logout }}</a>
+                <div class="language-block">
+                    <span class="language-label">{{ t.language }}:</span>
+                    <div class="lang-links">
+                        <a href="/language/en">English</a>
+                        <a href="/language/te">తెలుగు</a>
+                        <a href="/language/hi">हिंदी</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-shell">
+        <div class="section-card">
+            <div class="section-header">
+                <h2>{{ t.dashboard }}</h2>
+                <p>Welcome, {{ session.get('username', 'Farmer') }}. Manage crop, soil, weather, and farm decisions.</p>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-item"><a href="/"><span>🌱</span>{{ t.smart_crop_recommendation }}</a></div>
+                <div class="dashboard-item"><a href="/weather"><span>🌦</span>{{ t.weather }}</a></div>
+                <div class="dashboard-item"><a href="/market"><span>📈</span>{{ t.market_price }}</a></div>
+                <div class="dashboard-item"><a href="/profit"><span>💰</span>Profit &amp; Loss</a></div>
+                <div class="dashboard-item"><a href="/soil-report"><span>🧪</span>Soil Report</a></div>
+                <div class="dashboard-item"><a href="/fertilizer"><span>🌾</span>Fertilizer</a></div>
+                <div class="dashboard-item"><a href="/irrigation"><span>💧</span>Irrigation</a></div>
+                <div class="dashboard-item"><a href="/alternative-crops"><span>🔄</span>Alternative Crops</a></div>
+                <div class="dashboard-item"><a href="/crop-risk"><span>⚠️</span>Crop Risk</a></div>
+                <div class="dashboard-item"><a href="/chatbot"><span>🤖</span>{{ t.ai_chatbot }}</a></div>
+                <div class="dashboard-item"><a href="/crop-history"><span>📋</span>My Crop History</a></div>
+            </div>
+
+            {% if show_crop_history %}
+                <div class="section-header">
+                    <h2>My Crop History</h2>
+                </div>
+                <div class="table-box">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Crop</th>
+                                <th>Location</th>
+                                <th>Cost</th>
+                                <th>Revenue</th>
+                                <th>Profit/Loss</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in history_rows %}
+                                <tr>
+                                    <td>{{ row[0].strftime("%Y-%m-%d %H:%M") }}</td>
+                                    <td>{{ row[1] }}</td>
+                                    <td>{{ row[2] or "Not available" }}</td>
+                                    <td>{{ row[3] if row[3] is not none else "Not available" }}</td>
+                                    <td>{{ row[4] if row[4] is not none else "Not available" }}</td>
+                                    <td>{{ row[5] if row[5] is not none else "Not available" }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="6">No crop recommendations saved yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

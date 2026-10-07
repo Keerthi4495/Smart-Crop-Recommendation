@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Market Price</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/market">Market Price</a>
+        <a href="/weather">Weather</a>
+        <a href="/chatbot">AI Chatbot</a>
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Market Price</h2>
+        </div>
+
+        <div id="marketLocationDisplay" class="success-box" style="display:none;"></div>
+
+        <form method="POST" action="/market">
+            <label>Select crop:</label>
+            <select name="crop_name">
+                {% for crop in market_crops %}
+                    <option value="{{ crop }}" {% if selected_crop == crop %}selected{% endif %}>{{ crop }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Location / market:</label>
+            <input type="text" name="location" value="{{ selected_location }}" placeholder="Enter Location Manually">
+            <button type="button" class="secondary-button" id="useMarketLocationBtn">Use My Location</button>
+            <button type="submit">Check Market</button>
+        </form>
+
+        {% if market_message %}
+        <div class="alert-box">{{ market_message }}</div>
+        {% endif %}
+
+        {% if market_data %}
+        <div class="success-box">
+            <p><strong>Location:</strong> {{ selected_location }}</p>
+            <p><strong>Market / Mandi:</strong> {{ market_data.market_name }}</p>
+            <p><strong>Current Price:</strong> ₹{{ market_data.current_price }} / quintal</p>
+            <p><strong>Price Date:</strong> {{ market_data.price_date }}</p>
+            <p><strong>Source:</strong> {{ market_data.source }}</p>
+            <p><strong>Estimated Future Price Trend:</strong> ESTIMATED — not guaranteed</p>
+            <p><strong>7-Day Trend:</strong> {{ market_data.trend_7_days }}</p>
+            <p><strong>30-Day Trend:</strong> {{ market_data.trend_30_days }}</p>
+        </div>
+        {% endif %}
+
+        {% if selected_location %}
+        <div class="success-box">
+            <p><strong>Selected Location:</strong> {{ selected_location }}</p>
+            <p><strong>Estimated Future Price Trend:</strong> This is an estimate only and is not guaranteed.</p>
+        </div>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        const marketLocationDisplay = document.getElementById('marketLocationDisplay');
+        const marketLocationInput = document.querySelector('input[name="location"]');
+
+        document.getElementById('useMarketLocationBtn').addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                alert('Browser location is not available. Please enter the market location manually.');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                fetch('/location-detect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ lat: lat, lon: lon })
+                })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.success && data.location) {
+                        marketLocationInput.value = data.location;
+                        marketLocationDisplay.textContent = data.display;
+                        marketLocationDisplay.style.display = 'block';
+                    } else {
+                        alert('Location could not be detected. Please enter the market location manually.');
+                    }
+                })
+                .catch(function () {
+                    alert('Location could not be detected. Please enter the market location manually.');
+                });
+            }, function () {
+                alert('Location permission was denied. Please enter the market location manually.');
+            });
+        });
+    </script>
+</body>
+</html>

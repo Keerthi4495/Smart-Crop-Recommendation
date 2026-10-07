@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.smart_crop_recommendation }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="brand">🌱 SmartFarm</a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a class="nav-link active" href="/">{{ t.home }}</a>
+                <a class="nav-link" href="/dashboard">{{ t.dashboard }}</a>
+                <a class="nav-link" href="/weather">{{ t.weather }}</a>
+                <a class="nav-link" href="/market">{{ t.market_price }}</a>
+                <a class="nav-link" href="/chatbot">{{ t.ai_chatbot }}</a>
+                {% if session.get("username") %}
+                    <a class="nav-link" href="/logout">{{ t.logout }} ({{ session["username"] }})</a>
+                {% else %}
+                    <a class="nav-link" href="/login">{{ t.login }}</a>
+                    <a class="nav-link" href="/register">{{ t.register }}</a>
+                {% endif %}
+                <div class="language-block">
+                    <span class="language-label">{{ t.language }}:</span>
+                    <div class="lang-links">
+                        <a href="/language/en">English</a>
+                        <a href="/language/te">తెలుగు</a>
+                        <a href="/language/hi">हिंदी</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-shell">
+        <section class="hero">
+            <div class="hero-copy">
+                <div class="eyebrow">Farmer-first intelligence</div>
+                <h1>Smart Farming, Better Decisions</h1>
+                <p>AI-powered crop recommendations, weather insights, market trends and farming assistance.</p>
+                <div class="hero-actions">
+                    <a href="/" class="primary-btn">Get Started</a>
+                </div>
+            </div>
+
+            <div class="hero-panel">
+                <div class="panel-grid">
+                    <a class="panel-card" href="/">
+                        <div class="icon">🌱</div>
+                        <strong>Crop Recommendation</strong>
+                    </a>
+                    <a class="panel-card" href="/weather">
+                        <div class="icon">🌦</div>
+                        <strong>Weather</strong>
+                    </a>
+                    <a class="panel-card" href="/market">
+                        <div class="icon">📈</div>
+                        <strong>Market Price</strong>
+                    </a>
+                    <a class="panel-card" href="/profit">
+                        <div class="icon">💰</div>
+                        <strong>Profit &amp; Loss</strong>
+                    </a>
+                    <a class="panel-card" href="/soil-report">
+                        <div class="icon">🧪</div>
+                        <strong>Soil Analysis</strong>
+                    </a>
+                    <a class="panel-card" href="/chatbot">
+                        <div class="icon">🤖</div>
+                        <strong>AI Chatbot</strong>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="crop-recommendation" class="section-card form-card">
+            <div class="form-title">🌱 Smart Crop Recommendation</div>
+
+            <div class="info-pill">🧪 Don't know your NPK values? Get your soil tested for accurate NPK values. Do not guess NPK values.</div>
+
+            <form method="POST" action="/predict">
+                <div class="form-grid">
+                    <div class="field-group">
+                        <label for="nitrogen">N</label>
+                        <input type="number" step="any" name="nitrogen" id="nitrogen" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="phosphorus">P</label>
+                        <input type="number" step="any" name="phosphorus" id="phosphorus" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="potassium">K</label>
+                        <input type="number" step="any" name="potassium" id="potassium" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="temperature">Temperature</label>
+                        <input type="number" step="any" name="temperature" id="temperature" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="humidity">Humidity</label>
+                        <input type="number" step="any" name="humidity" id="humidity" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="ph_value">pH Value</label>
+                        <input type="number" step="any" name="ph_value" id="ph_value" required>
+                    </div>
+                    <div class="field-group" style="grid-column: 1 / -1;">
+                        <label for="rainfall">Rainfall</label>
+                        <input type="number" step="any" name="rainfall" id="rainfall" required>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-btn">Predict Crop</button>
+                    <button type="button" class="secondary-btn" onclick="fillSampleValues()">Use Sample Values</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        SmartFarm – AI-powered assistance for better farming decisions.
+    </footer>
+
+    <script>
+        function fillSampleValues() {
+            document.getElementsByName("nitrogen")[0].value = 90;
+            document.getElementsByName("phosphorus")[0].value = 42;
+            document.getElementsByName("potassium")[0].value = 43;
+            document.getElementsByName("temperature")[0].value = 20;
+            document.getElementsByName("humidity")[0].value = 82;
+            document.getElementsByName("ph_value")[0].value = 6.5;
+            document.getElementsByName("rainfall")[0].value = 200;
+        }
+    </script>
+</body>
+</html>

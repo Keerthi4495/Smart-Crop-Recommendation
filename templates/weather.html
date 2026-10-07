@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Weather</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/weather">Weather</a>
+        <a href="/market">Market Price</a>
+        <a href="/chatbot">AI Chatbot</a>
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Weather</h2>
+        </div>
+
+        <div id="locationDisplay" class="success-box" style="display:none;"></div>
+
+        <form method="POST" action="/weather">
+            <label>Location:</label>
+            <input type="text" name="location" placeholder="Enter Location Manually" value="{{ request.form.get('location', '') }}">
+            <button type="button" class="secondary-button" id="useLocationBtn">Use My Location</button>
+            <button type="submit">Check Weather</button>
+        </form>
+
+        {% if error_message %}
+            <div class="alert-box">{{ error_message }}</div>
+        {% endif %}
+
+        {% if weather_result %}
+        <div class="weather-box success-box">
+            <strong>{{ weather_result.location }}</strong>
+            <p><strong>Temperature:</strong> {{ weather_result.temperature }}°C</p>
+            <p><strong>Humidity:</strong> {{ weather_result.humidity }}%</p>
+            <p><strong>Rainfall:</strong> {{ weather_result.rainfall }} mm</p>
+            <p><strong>Wind Speed:</strong> {{ weather_result.wind_speed }} km/h</p>
+            <p><strong>Condition:</strong> {{ weather_result.condition }}</p>
+        </div>
+        {% endif %}
+
+        {% if weather_result and weather_result.forecast %}
+        <div class="table-box">
+            <h3>Forecast</h3>
+            <table>
+                <tr>
+                    <th>Date</th>
+                    <th>Weather</th>
+                    <th>Max</th>
+                    <th>Min</th>
+                    <th>Rain %</th>
+                </tr>
+                {% for day in weather_result.forecast %}
+                <tr>
+                    <td>{{ day.date }}</td>
+                    <td>{{ day.condition }}</td>
+                    <td>{{ day.max_temp }}°C</td>
+                    <td>{{ day.min_temp }}°C</td>
+                    <td>{{ day.rain_chance }}%</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="/dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        const locationDisplay = document.getElementById('locationDisplay');
+        const locationInput = document.querySelector('input[name="location"]');
+
+        document.getElementById('useLocationBtn').addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                alert('Browser location is not available. Please enter a city manually.');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                fetch('/location-detect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ lat: lat, lon: lon })
+                })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.success && data.location) {
+                        locationInput.value = data.location;
+                        locationDisplay.textContent = data.display;
+                        locationDisplay.style.display = 'block';
+                    } else {
+                        alert('Location could not be detected. Please type the city manually.');
+                    }
+                })
+                .catch(function () {
+                    alert('Location could not be detected. Please type the city manually.');
+                });
+            }, function () {
+                alert('Location permission was denied. Please enter a city manually.');
+            });
+        });
+    </script>
+</body>
+</html>

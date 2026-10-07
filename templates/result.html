@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.recommended_crop }} — SmartFarm</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="brand">🌱 SmartFarm</a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link" href="/weather">Weather</a>
+                <a class="nav-link" href="/market">Market Price</a>
+                <a class="nav-link" href="/chatbot">AI Chatbot</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-shell result-page">
+        <section class="result-card crop-recommendation-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">🌱</span>
+                <h1>{{ t.recommended_crop }}</h1>
+            </div>
+            {% set crop_key = (crop or '') | string | lower | trim %}
+            {% set crop_asset = crop_key %}
+            {% if crop_asset not in ['rice', 'maize', 'cotton', 'banana', 'mango'] %}
+                {% set crop_asset = 'default' %}
+            {% endif %}
+            {% set crop_information = {
+                'rice': {
+                    'about': 'Rice is a cereal grain grown mainly as food. It is widely cultivated in warm regions where suitable land and water are available.',
+                    'soil': 'Many soils can grow rice. Lowland rice often does well in level, heavier soil that holds water; suitability depends on the local variety and field system.',
+                    'climate': 'Warm growing weather is generally suitable. Cold conditions can harm growth.',
+                    'water': 'Rice needs dependable moisture. Water needs vary between lowland and upland systems; follow local advice on irrigation and field drainage.',
+                    'period': 'Growing and harvest time varies by variety, season, and region. Use the local crop calendar.',
+                    'precautions': 'Use clean seed, control weeds early, check fields often for pests or disease, and manage water and drainage for the local rice system.'
+                },
+                'maize': {
+                    'about': 'Maize, also called corn, is a cereal crop grown for grain and food, feed, and other farm uses.',
+                    'soil': 'Well-drained soil with good fertility is generally suitable. Avoid waterlogged fields.',
+                    'climate': 'Maize grows in warm weather and needs good sunlight. Frost and severe heat or moisture stress can affect growth.',
+                    'water': 'It needs steady soil moisture, especially around flowering and grain formation. Adjust irrigation to rainfall and soil moisture.',
+                    'period': 'The crop duration and harvest stage vary with variety and local season. Follow local planting and harvest guidance.',
+                    'precautions': 'Use suitable clean seed, control weeds early, keep drainage clear, and inspect leaves and stems regularly for pests or disease.'
+                },
+                'cotton': {
+                    'about': 'Cotton is a warm-season crop grown for the natural fibre around its seeds.',
+                    'soil': 'Deep, well-drained soil is generally suitable. Avoid fields where water stands for long periods.',
+                    'climate': 'It needs a warm, mostly frost-free growing season and plenty of sunlight.',
+                    'water': 'Water needs depend on rainfall, soil, and crop stage. Avoid both prolonged dry stress and waterlogging.',
+                    'period': 'Crop duration and picking time vary by variety and region; follow local agricultural guidance.',
+                    'precautions': 'Inspect plants regularly for insect pests, use clean seed, control weeds, and seek local advice if damage appears.'
+                },
+                'banana': {
+                    'about': 'Banana is a tropical fruit crop. Its large herb-like plant produces bunches of fruit.',
+                    'soil': 'Deep, fertile, well-drained soil is generally suitable.',
+                    'climate': 'Banana prefers warm, sunny conditions and can be damaged by cold and strong winds.',
+                    'water': 'It needs regular moisture, especially in dry weather, but roots should not remain waterlogged.',
+                    'period': 'Time to harvest depends on variety, planting material, and climate. Follow local harvest signs and advice.',
+                    'precautions': 'Use healthy planting material, keep the field clean, provide drainage, and check plants and bunches for pest or disease signs.'
+                },
+                'mango': {
+                    'about': 'Mango is a tropical and subtropical fruit tree grown for its edible fruit.',
+                    'soil': 'Well-drained soil is important. The best soil and variety depend on local conditions.',
+                    'climate': 'Mango generally suits warm, sunny conditions and may be harmed by frost.',
+                    'water': 'Young trees need suitable moisture while establishing. Established trees can tolerate some dry periods; avoid waterlogging and follow local orchard advice.',
+                    'period': 'Flowering and fruit harvest time vary by variety and region. Use local seasonal guidance.',
+                    'precautions': 'Use healthy planting material, keep the orchard clean, inspect leaves and fruit, and seek local advice for pest or disease problems.'
+                }
+            } %}
+            <div class="crop-image-wrap">
+                <img
+                    class="crop-image"
+                    src="{{ url_for('static', filename='images/crops/' + crop_asset + '.jpg') }}"
+                    alt="{{ crop }} crop photograph"
+                >
+            </div>
+            <p class="crop-name">{{ crop }}</p>
+        </section>
+
+        {% set crop_info = crop_information.get(crop_key) %}
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">🌱</span>
+                <h2>About This Crop</h2>
+            </div>
+            <p><strong>🌱 Crop Name:</strong> {{ crop }}</p>
+            <p><strong>📖 About the Crop:</strong>
+                {{ crop_info.about if crop_info else 'Growing needs depend on the crop variety and local conditions. Ask your local agriculture office for crop-specific guidance.' }}
+            </p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">❔</span>
+                <h2>Why was this crop recommended?</h2>
+            </div>
+            <p>This crop was recommended based on the soil and environmental values you entered:
+                nitrogen, phosphorus, potassium, temperature, humidity, pH, and rainfall.
+                For better accuracy, use values from a recent soil test instead of guessing NPK values.
+            </p>
+            <p>The recommendation does not determine the exact fertilizer requirement. Follow a soil test
+                and local agricultural advice for nutrient decisions.</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">🌦️</span>
+                <h2>Suitable Conditions</h2>
+            </div>
+            <p><strong>Soil:</strong>
+                {{ crop_info.soil if crop_info else 'Suitable soil depends on the crop and local variety. Use a soil test and local agriculture guidance.' }}
+            </p>
+            <p><strong>Temperature and climate:</strong>
+                {{ crop_info.climate if crop_info else 'Climate needs vary by crop and variety. Check that local temperatures and seasons suit the selected seed.' }}
+            </p>
+            <p><strong>Water and rainfall:</strong>
+                {{ crop_info.water if crop_info else 'Water and rainfall needs depend on crop, soil, and season. Avoid overwatering and seek local irrigation advice.' }}
+            </p>
+            <p><strong>Growing conditions:</strong> Provide suitable sunlight, healthy planting material, and good field drainage where appropriate.</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">💧</span>
+                <h2>Water &amp; Irrigation</h2>
+            </div>
+            <p>{{ crop_info.water if crop_info else 'Water needs vary with the crop, soil, rainfall, and growth stage. Check soil moisture and follow local irrigation guidance.' }}</p>
+            <p>Use rainfall and soil moisture to guide watering. Avoid water stress and standing water unless the local crop system requires it.</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">🧪</span>
+                <h2>Soil &amp; Nutrients</h2>
+            </div>
+            <p>{{ crop_info.soil if crop_info else 'Soil needs differ by crop and variety. A recent soil test and local advice are the best guide.' }}</p>
+            <p>N helps leafy growth, P supports roots and early growth, and K helps plants manage water and general stress. The model does not know your exact fertilizer requirement; base fertilizer use on a soil test and local advice.</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">☀️</span>
+                <h2>Growing / Harvest Information</h2>
+            </div>
+            <p><strong>Sunlight and climate:</strong>
+                {{ crop_info.climate if crop_info else 'Sunlight and climate needs vary by crop and variety; follow local seed and agriculture guidance.' }}
+            </p>
+            <p><strong>Growth and harvest:</strong>
+                {{ crop_info.period if crop_info else 'Growing period and harvest signs depend on crop variety, season, and region. Use the local crop calendar.' }}
+            </p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">⚠️</span>
+                <h2>Important Precautions</h2>
+            </div>
+            <p>{{ crop_info.precautions if crop_info else 'Use healthy planting material, inspect the crop regularly, keep the field clean, and ask a local agriculture expert about unusual symptoms.' }}</p>
+        </section>
+
+        <section class="result-card location-card">
+            <h2>{{ t.farmer_location }}</h2>
+            <p>{{ t.location_prompt }}</p>
+            <form id="locationForm" class="result-location-form">
+                <label for="farmerLocation">{{ t.manual_location }}</label>
+                <input id="farmerLocation" name="location" type="text" autocomplete="off">
+                <div class="location-actions">
+                    <button type="button" class="secondary-button" id="useMyLocation">{{ t.use_my_location }}</button>
+                    <button type="submit">{{ t.load_farmer_information }}</button>
+                </div>
+            </form>
+            <p id="resultStatus" class="result-status" role="status">{{ t.location_required }}</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">🌦️</span>
+                <h2>{{ t.today_weather }}</h2>
+            </div>
+            <div id="currentWeather" class="result-metrics"></div>
+            <p id="weatherStatus" class="result-status">{{ t.location_required }}</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">📅</span>
+                <h2>{{ t.upcoming_weather }}</h2>
+            </div>
+            <div id="weatherForecast" class="forecast-cards"></div>
+            <p id="forecastStatus" class="result-status">{{ t.location_required }}</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">💰</span>
+                <h2><span id="marketCrop">{{ crop }}</span> {{ t.market_price_for }}</h2>
+            </div>
+            <div id="marketPrice" class="result-metrics"></div>
+            <p id="marketStatus" class="result-status">{{ t.location_required }}</p>
+        </section>
+
+        <section class="result-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">📈</span>
+                <h2>{{ t.future_price_trend }}</h2>
+            </div>
+            <div id="marketTrends" class="trend-grid"></div>
+            <p class="trend-disclaimer">{{ t.trend_disclaimer }}</p>
+        </section>
+
+        <a href="/" class="back-link">{{ t.home_link }}</a>
+    </main>
+
+    <script>
+        const cropName = {{ crop | tojson }};
+        const historyId = {{ history_id | tojson }};
+        const labels = {{ result_labels | tojson }};
+        const locationForm = document.getElementById('locationForm');
+        const locationInput = document.getElementById('farmerLocation');
+        const statusMessage = document.getElementById('resultStatus');
+
+        function addMetric(container, label, value) {
+            const item = document.createElement('div');
+            item.className = 'result-metric';
+            const term = document.createElement('span');
+            term.className = 'result-metric-label';
+            term.textContent = label;
+            const detail = document.createElement('strong');
+            detail.textContent = value;
+            item.append(term, detail);
+            container.appendChild(item);
+        }
+
+        function showMessage(element, message) {
+            element.textContent = message || '';
+            element.hidden = !message;
+        }
+
+        function renderWeather(weather, error) {
+            const metrics = document.getElementById('currentWeather');
+            metrics.replaceChildren();
+            const weatherStatus = document.getElementById('weatherStatus');
+            const forecast = document.getElementById('weatherForecast');
+            const forecastStatus = document.getElementById('forecastStatus');
+            forecast.replaceChildren();
+            if (!weather) {
+                showMessage(weatherStatus, error || labels.weather_unavailable);
+                showMessage(forecastStatus, error || labels.weather_unavailable);
+                return;
+            }
+            showMessage(weatherStatus, '');
+            addMetric(metrics, labels.temperature, weather.temperature == null ? '—' : `${weather.temperature} °C`);
+            addMetric(metrics, labels.humidity, weather.humidity == null ? '—' : `${weather.humidity}%`);
+            addMetric(metrics, labels.rainfall, weather.rainfall == null ? '—' : `${weather.rainfall} mm`);
+            addMetric(metrics, labels.weather_condition, weather.condition || '—');
+            addMetric(metrics, labels.wind, weather.wind_speed == null ? '—' : `${weather.wind_speed} km/h`);
+
+            const days = weather.forecast || [];
+            if (!days.length) {
+                showMessage(forecastStatus, labels.weather_unavailable);
+                return;
+            }
+            showMessage(forecastStatus, '');
+            days.forEach(function (day) {
+                const card = document.createElement('article');
+                card.className = 'forecast-day-card';
+                const date = document.createElement('h3');
+                date.textContent = day.date || '—';
+                card.appendChild(date);
+                addMetric(card, labels.temperature, `${day.min_temp ?? '—'}–${day.max_temp ?? '—'} °C`);
+                addMetric(card, labels.rain_possibility, day.rain_chance == null ? '—' : `${day.rain_chance}%`);
+                addMetric(card, labels.weather_condition, day.condition || '—');
+                if (day.warning) {
+                    const warning = document.createElement('p');
+                    warning.className = 'weather-warning';
+                    warning.textContent = `${labels.warning}: ${day.warning}`;
+                    card.appendChild(warning);
+                }
+                forecast.appendChild(card);
+            });
+        }
+
+        function renderMarket(market, error, location) {
+            const details = document.getElementById('marketPrice');
+            details.replaceChildren();
+            const marketStatus = document.getElementById('marketStatus');
+            addMetric(details, labels.recommended_crop, cropName);
+            addMetric(details, labels.farmer_location, location || '—');
+            if (!market) {
+                showMessage(marketStatus, error || labels.market_unavailable);
+                renderTrends(null, error || labels.market_unavailable);
+                return;
+            }
+            showMessage(marketStatus, '');
+            addMetric(details, labels.nearby_mandi, market.market_district
+                ? `${market.market_name}, ${market.market_district}`
+                : market.market_name || '—');
+            addMetric(details, labels.current_price, market.current_price == null ? '—' : `₹${market.current_price} / quintal`);
+            addMetric(details, labels.minimum, market.minimum_price == null ? '—' : `₹${market.minimum_price} / quintal`);
+            addMetric(details, labels.maximum, market.maximum_price == null ? '—' : `₹${market.maximum_price} / quintal`);
+            addMetric(details, labels.modal_price, market.modal_price == null ? '—' : `₹${market.modal_price} / quintal`);
+            addMetric(details, labels.last_updated, market.price_date || '—');
+            addMetric(details, labels.source, market.source || '—');
+            renderTrends(market);
+        }
+
+        function trendText(trend, unavailableMessage) {
+            const normalized = String(trend || '').toLowerCase();
+            if (normalized === 'increase') return labels.increase;
+            if (normalized === 'decrease') return labels.decrease;
+            if (normalized === 'stable') return labels.stable;
+            return unavailableMessage || labels.trend_unavailable;
+        }
+
+        function renderTrends(market, unavailableMessage) {
+            const trends = document.getElementById('marketTrends');
+            trends.replaceChildren();
+            addMetric(trends, labels.seven_day_trend, trendText(market && market.trend_7_days, unavailableMessage));
+            addMetric(trends, labels.thirty_day_trend, trendText(market && market.trend_30_days, unavailableMessage));
+        }
+
+        async function loadFarmerInformation(location, coordinates) {
+            statusMessage.textContent = labels.loading_farmer_information;
+            const payload = {crop: cropName, location: location || ''};
+            if (historyId !== null) {
+                payload.history_id = historyId;
+            }
+            if (coordinates) {
+                payload.latitude = coordinates.latitude;
+                payload.longitude = coordinates.longitude;
+            }
+            try {
+                const response = await fetch('/recommendation-data', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || labels.location_required);
+                }
+                statusMessage.textContent = data.location || location;
+                renderWeather(data.weather, data.weather_error);
+                renderMarket(data.market, data.market_error, data.location || location);
+            } catch (error) {
+                console.error('Could not load weather and market data for this recommendation.', error);
+                statusMessage.textContent = 'Weather and market data could not be loaded. Please try again or enter another location.';
+                renderWeather(null, labels.weather_unavailable);
+                renderMarket(null, labels.market_unavailable, location);
+            }
+        }
+
+        locationForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            const location = locationInput.value.trim();
+            if (!location) {
+                statusMessage.textContent = labels.location_required;
+                return;
+            }
+            loadFarmerInformation(location, null);
+        });
+
+        document.getElementById('useMyLocation').addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                statusMessage.textContent = labels.location_required;
+                return;
+            }
+            statusMessage.textContent = labels.location_prompt;
+            navigator.geolocation.getCurrentPosition(function (position) {
+                const coordinates = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                locationInput.value = '';
+                loadFarmerInformation('', coordinates);
+            }, function () {
+                statusMessage.textContent = labels.location_required;
+            }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 300000});
+        });
+
+        renderTrends(null, labels.location_required);
+    </script>
+</body>
+</html>

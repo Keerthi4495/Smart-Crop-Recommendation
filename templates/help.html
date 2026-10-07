@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>How to Use</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+    </div>
+
+    <div class="help-box">
+        <h2>How to Use</h2>
+        <ol>
+            <li>Open the home page.</li>
+            <li>Enter 7 values: Nitrogen, Phosphorus, Potassium, Temperature, Humidity, pH, and Rainfall.</li>
+            <li>Click the Predict Crop button.</li>
+            <li>Read the crop suggestion shown on the result page.</li>
+        </ol>
+        <a href="/">Back to Home</a>
+    </div>
+
+    <div class="page-footer">
+        Created with Python, Flask, and the saved Random Forest model.
+    </div>
+</body>
+</html>

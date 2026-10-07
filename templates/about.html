@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>About This App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+    </div>
+
+    <div class="about-box">
+        <h2>About This App</h2>
+        <p>This is a simple crop recommendation app.</p>
+        <p>It uses the saved Random Forest model to suggest a crop.</p>
+        <p>You enter 7 values: Nitrogen, Phosphorus, Potassium, Temperature, Humidity, pH, and Rainfall.</p>
+        <a href="/">Back to Home</a>
+    </div>
+
+    <div class="page-footer">
+        Created with Python, Flask, and the saved Random Forest model.
+    </div>
+</body>
+</html>

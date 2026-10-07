@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="brand">🌱 SmartFarm</a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link active" href="/login">Login</a>
+                <a class="nav-link" href="/register">Register</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-shell">
+        <div class="container auth-box">
+            <h2>Login</h2>
+            {% if message %}
+                <div class="alert-box">{{ message }}</div>
+            {% endif %}
+
+            <form method="POST" action="/login">
+                <div class="field-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                </div>
+
+                <div class="field-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+
+                <button type="submit" class="primary-btn">Login</button>
+            </form>
+
+            <div class="page-footer">
+                New farmer? <a href="/register">Create account</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
