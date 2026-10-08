@@ -12,13 +12,9 @@
     <main class="page-shell result-page">
         <section class="result-card crop-recommendation-card">
             <div class="result-card-heading">
-                <h1>{{ t.recommended_crop }}</h1>
+                <h1><span aria-hidden="true">🌱</span> Recommended Crop</h1>
             </div>
             {% set crop_key = (crop or '') | string | lower | trim %}
-            {% set crop_asset = crop_key %}
-            {% if crop_asset not in ['rice', 'maize', 'cotton', 'banana', 'mango'] %}
-                {% set crop_asset = 'default' %}
-            {% endif %}
             {% set crop_information = {
                 'rice': {'about': 'Rice is a cereal grown for food, often in fields where water can be carefully managed.', 'group': 'grain'},
                 'maize': {'about': 'Maize is a grain crop used for food, feed and other farm products.', 'group': 'grain'},
@@ -127,16 +123,92 @@
             <div class="crop-image-wrap">
                 <img
                     class="crop-image"
-                    src="{{ url_for('static', filename='images/crops/' + crop_asset + '.jpg') }}"
+                    src="{{ url_for('static', filename='images/crops/' + crop_image) }}"
                     alt="{{ crop }} crop photograph"
                     fetchpriority="high"
                 >
             </div>
             <p class="crop-name">{{ crop }}</p>
+            <p class="crop-result-message">This crop is recommended based on the soil and weather values you entered.</p>
+
+            <section class="crop-result-conditions" aria-labelledby="crop-result-conditions-title">
+                <div class="result-card-heading">
+                    <h2 id="crop-result-conditions-title">Soil &amp; Weather Conditions</h2>
+                </div>
+                <dl class="crop-condition-values">
+                    <div><dt>N</dt><dd>{{ prediction_values.nitrogen }}</dd></div>
+                    <div><dt>P</dt><dd>{{ prediction_values.phosphorus }}</dd></div>
+                    <div><dt>K</dt><dd>{{ prediction_values.potassium }}</dd></div>
+                    <div><dt>Temperature</dt><dd>{{ prediction_values.temperature }} °C</dd></div>
+                    <div><dt>Humidity</dt><dd>{{ prediction_values.humidity }} %</dd></div>
+                    <div><dt>pH</dt><dd>{{ prediction_values.ph_value }}</dd></div>
+                    <div><dt>Rainfall</dt><dd>{{ prediction_values.rainfall }} mm</dd></div>
+                </dl>
+            </section>
+
+            <section class="crop-result-charts" aria-label="Entered soil and weather values">
+                <article class="crop-chart-card">
+                    <h2>Soil Nutrients</h2>
+                    <div class="crop-chart-bars">
+                        {% for item in result_charts.soil %}
+                        <div class="crop-chart-row">
+                            <div class="crop-chart-label"><span>{{ item.label }}</span><strong>{{ item.value }}{{ item.unit }}</strong></div>
+                            <div class="crop-chart-track" role="img" aria-label="{{ item.label }}: {{ item.value }}">
+                                <span style="width: {{ item.width }}%"></span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="crop-chart-card">
+                    <h2>Weather Conditions</h2>
+                    <div class="crop-chart-bars">
+                        {% for item in result_charts.weather %}
+                        <div class="crop-chart-row">
+                            <div class="crop-chart-label"><span>{{ item.label }}</span><strong>{{ item.value }} {{ item.unit }}</strong></div>
+                            <div class="crop-chart-track" role="img" aria-label="{{ item.label }}: {{ item.value }} {{ item.unit }}">
+                                <span style="width: {{ item.width }}%"></span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+            <p class="crop-chart-note">Bars are visual guides; the values shown are exactly those you entered.</p>
+
+            {% if feature_importances %}
+            <section class="crop-feature-importance" aria-labelledby="crop-feature-importance-title">
+                <h2 id="crop-feature-importance-title">Factors Influencing Recommendation</h2>
+                <p>These are the trained model’s feature importance values, not certainty scores for this prediction.</p>
+                <div class="crop-chart-bars">
+                    {% for item in feature_importances %}
+                    <div class="crop-chart-row">
+                        <div class="crop-chart-label">
+                            <span>{{ item.name }}</span>
+                            <strong>{{ "%.1f"|format(item.value * 100) }}%</strong>
+                        </div>
+                        <div class="crop-chart-track" role="img" aria-label="{{ item.name }} importance: {{ "%.1f"|format(item.value * 100) }} percent">
+                            <span class="importance-bar" style="width: {{ item.value * 100 }}%"></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
         </section>
 
         {% set crop_info = crop_information.get(crop_key) %}
         {% set crop_cultivation = cultivation_information.get(crop_info.group if crop_info else '') %}
+        <section class="result-card crop-precautions-card">
+            <div class="result-card-heading">
+                <span class="result-icon" aria-hidden="true">⚠️</span>
+                <h2>Crop Precautions</h2>
+            </div>
+            <p>{{ crop_precautions.get(crop_key, 'Use healthy planting material, inspect plants regularly, maintain suitable drainage, and follow local integrated pest-management guidance.') }}</p>
+            {% if crop_cultivation %}
+            <p><strong>Common risks:</strong> {{ crop_cultivation.risks }}</p>
+            {% endif %}
+        </section>
         <section class="result-card">
             <div class="result-card-heading">
                 <span class="result-icon" aria-hidden="true">🌱</span>
@@ -209,15 +281,6 @@
             <p><strong>Harvest information:</strong> {{ crop_cultivation.harvest if crop_cultivation else 'Harvest maturity signs depend on crop variety and region. Use local crop-calendar guidance.' }}</p>
         </section>
 
-        <section class="result-card">
-            <div class="result-card-heading">
-                <span class="result-icon" aria-hidden="true">⚠️</span>
-                <h2>Important Precautions</h2>
-            </div>
-            <p><strong>Common risks:</strong> {{ crop_cultivation.risks if crop_cultivation else 'Risks depend on local weather, variety and crop health. Inspect plants regularly.' }}</p>
-            <p><strong>Precautions:</strong> {{ crop_precautions.get(crop_key, crop_cultivation.precautions if crop_cultivation else 'Use healthy planting material and inspect this crop regularly for local pests and disease.') }}</p>
-        </section>
-
         <section class="result-card location-card">
             <h2>📍 {{ t.farmer_location }}</h2>
             <p id="farmerLocationDisplay">{{ location or 'Location could not be resolved from the crop form.' }}</p>
@@ -249,6 +312,7 @@
             </div>
             <div id="marketPrice" class="result-metrics"></div>
             <p id="marketStatus" class="result-status">{{ t.location_required }}</p>
+            <a class="secondary-button" href="{{ url_for('market', crop_name=crop, location=location) }}">View Market Price</a>
         </section>
 
         <section class="result-card">

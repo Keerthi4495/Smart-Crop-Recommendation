@@ -12,21 +12,22 @@
         <div class="page-header">
             <span class="section-eyebrow">MARKET INFORMATION FOR YOUR AREA</span>
             <h1>Market Price</h1>
-            <p>Look up reported mandi prices for a crop and location. Availability depends on the market data source.</p>
+            <p>Check the latest reported price for your crop and local mandi when market data is available.</p>
         </div>
 
         <div id="marketLocationDisplay" class="success-box" style="display:none;"></div>
 
         <form method="POST" action="{{ url_for('market') }}" class="market-search-form">
-            <label>Select crop:</label>
-            <select name="crop_name">
+            <label for="marketCrop">Crop</label>
+            <select id="marketCrop" name="crop_name" required>
+                <option value="" {% if not selected_crop %}selected{% endif %}>Select a crop</option>
                 {% for crop in market_crops %}
                     <option value="{{ crop }}" {% if selected_crop|replace(' ', '')|lower == crop|replace(' ', '')|lower %}selected{% endif %}>{{ crop }}</option>
                 {% endfor %}
             </select>
 
-            <label>Location / market:</label>
-            <input type="text" name="location" value="{{ selected_location }}" placeholder="Enter Location Manually">
+            <label for="marketLocation">Market / mandi location</label>
+            <input id="marketLocation" type="text" name="location" value="{{ selected_location }}" placeholder="Enter village, town or district" required>
             <button type="button" class="secondary-button" id="useMarketLocationBtn">Use My Location</button>
             <button type="submit">Check Market</button>
         </form>
@@ -35,22 +36,82 @@
         <section class="success-box market-result-card" aria-live="polite">
             <h3>{{ selected_crop }}</h3>
             <p class="market-result-location"><strong>Location:</strong> {{ selected_location }}</p>
-            <h4>Current Market Price</h4>
-            <p class="market-result-price">₹{{ market_data.current_price }} <span>{{ (market_data.price_unit or '₹/quintal')|replace('₹', '') }}</span></p>
-            <p><strong>Mandi:</strong> {{ market_data.market_name }}{% if market_data.market_district %}, {{ market_data.market_district }}{% endif %}</p>
-            <p><strong>Updated:</strong> {{ market_data.price_date or 'Date not provided by data source' }}</p>
-            <p><strong>Data source:</strong> {{ market_data.source }}</p>
+            <h4>Latest reported price</h4>
+            <p class="market-result-price">₹{{ market_data.current_price }}{% if market_data.price_unit %} <span>{{ market_data.price_unit|replace('₹', '') }}</span>{% endif %}</p>
+            <div class="market-price-summary" aria-label="Price range">
+                <div>
+                    <span>Minimum price</span>
+                    <strong>{% if market_data.minimum_price is not none %}₹{{ market_data.minimum_price }}{% else %}Not provided{% endif %}</strong>
+                </div>
+                <div>
+                    <span>Maximum price</span>
+                    <strong>{% if market_data.maximum_price is not none %}₹{{ market_data.maximum_price }}{% else %}Not provided{% endif %}</strong>
+                </div>
+                <div>
+                    <span>Modal / average price</span>
+                    <strong>{% if market_data.modal_price is not none %}₹{{ market_data.modal_price }}{% else %}Not provided{% endif %}</strong>
+                </div>
+            </div>
+            {% if market_data.price_unit %}<p class="market-price-unit">Prices are reported in {{ market_data.price_unit|replace('₹', 'Indian rupees ') }}.</p>{% endif %}
+            <p><strong>Market / mandi:</strong> {{ market_data.market_name or 'Not provided' }}{% if market_data.market_district %}, {{ market_data.market_district }}{% endif %}</p>
+            <p><strong>Latest available date:</strong> {{ market_data.price_date or 'Not provided by source' }}</p>
+            {% if market_data.source %}<p><strong>Source:</strong> {{ market_data.source }}</p>{% endif %}
 
+            <section class="market-history-section" aria-labelledby="marketHistoryHeading">
+                <h4 id="marketHistoryHeading">Recent historical prices</h4>
+                {% if market_data.history %}
+                <p>Reported modal / average prices for this mandi.</p>
+                <div class="market-chart-wrap">
+                    <svg id="marketHistoryChart" class="market-price-chart" viewBox="0 0 720 280" role="img" aria-label="Historical mandi price trend"></svg>
+                </div>
+                <div class="market-history-table-wrap">
+                    <table class="market-history-table">
+                        <thead><tr><th scope="col">Date</th><th scope="col">Modal / average price</th></tr></thead>
+                        <tbody>
+                            {% for point in market_data.history|reverse %}
+                            <tr><td>{{ point.date }}</td><td>₹{{ point.price }}{% if market_data.price_unit %} {{ market_data.price_unit|replace('₹', '') }}{% endif %}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="market-chart-unavailable">Historical price records are not available from the data source for this listing.</p>
+                {% endif %}
+            </section>
+
+            <section class="market-forecast-section" aria-labelledby="marketForecastHeading">
+                <h4 id="marketForecastHeading">Estimated Future Price Trend</h4>
+                {% if market_data.future_estimates %}
+                <p class="market-estimate-warning"><strong>ESTIMATED — not guaranteed.</strong> This estimate is calculated from a sufficiently long, consistent history; actual mandi prices can change.</p>
+                <div class="market-chart-wrap">
+                    <svg id="marketForecastChart" class="market-price-chart" viewBox="0 0 720 280" role="img" aria-label="Estimated future mandi price trend"></svg>
+                </div>
+                <div class="market-history-table-wrap">
+                    <table class="market-history-table">
+                        <thead><tr><th scope="col">Estimated date</th><th scope="col">Estimated price</th></tr></thead>
+                        <tbody>
+                            {% for point in market_data.future_estimates %}
+                            <tr><td>{{ point.date }}</td><td>₹{{ point.price }}{% if market_data.price_unit %} {{ market_data.price_unit|replace('₹', '') }}{% endif %}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="market-chart-unavailable">Future price estimate unavailable. There is not enough consistent historical data to make a useful estimate.</p>
+                {% endif %}
+            </section>
+
+            {% if market_data.trend_7_days or market_data.trend_30_days %}
             <div class="market-result-trend">
-                <strong>Estimated recent price trend</strong>
+                <strong>Recent price trend</strong>
                 {% if market_data.trend_7_days == 'Increase' %}
                     <span>7-day: Increasing</span>
                 {% elif market_data.trend_7_days == 'Decrease' %}
                     <span>7-day: Decreasing</span>
                 {% elif market_data.trend_7_days == 'Stable' %}
                     <span>7-day: Stable</span>
-                {% else %}
-                    <span>7-day: {{ translations.trend_unavailable }}</span>
+                {% elif market_data.trend_7_days %}
+                    <span>7-day: {{ market_data.trend_7_days }}</span>
                 {% endif %}
                 {% if market_data.trend_30_days == 'Increase' %}
                     <span>30-day: Increasing</span>
@@ -58,22 +119,91 @@
                     <span>30-day: Decreasing</span>
                 {% elif market_data.trend_30_days == 'Stable' %}
                     <span>30-day: Stable</span>
-                {% else %}
-                    <span>30-day: {{ translations.trend_unavailable }}</span>
+                {% elif market_data.trend_30_days %}
+                    <span>30-day: {{ market_data.trend_30_days }}</span>
                 {% endif %}
                 <small>Estimated trend only, based on available recent mandi records. Future market prices are not guaranteed.</small>
             </div>
+            {% endif %}
         </section>
         {% elif market_message %}
         <div class="alert-box" role="status">{{ market_message }}</div>
         {% endif %}
 
         <div class="page-footer">
-            <a href="/dashboard">Back to Dashboard</a>
+            <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
         </div>
     </main>
 
     <script>
+        function drawMarketChart(elementId, points, lineColor) {
+            const svg = document.getElementById(elementId);
+            if (!svg || !points || points.length === 0) return;
+
+            const namespace = 'http://www.w3.org/2000/svg';
+            const width = 720;
+            const height = 280;
+            const margin = {top: 18, right: 18, bottom: 42, left: 68};
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            const values = points.map(function (point) { return Number(point.price); });
+            const minimum = Math.min.apply(null, values);
+            const maximum = Math.max.apply(null, values);
+            const padding = maximum === minimum ? Math.max(maximum * 0.05, 1) : (maximum - minimum) * 0.12;
+            const low = Math.max(0, minimum - padding);
+            const high = maximum + padding;
+            const valueRange = high - low || 1;
+            const timestamps = points.map(function (point) { return Date.parse(point.iso_date || ''); });
+            const hasDateRange = timestamps.every(Number.isFinite) && timestamps[timestamps.length - 1] > timestamps[0];
+            const x = function (index) {
+                if (hasDateRange) {
+                    return margin.left + (timestamps[index] - timestamps[0]) * chartWidth / (timestamps[timestamps.length - 1] - timestamps[0]);
+                }
+                return margin.left + (points.length === 1 ? chartWidth / 2 : index * chartWidth / (points.length - 1));
+            };
+            const y = function (value) {
+                return margin.top + (high - value) * chartHeight / valueRange;
+            };
+            const addSvgElement = function (tag, attributes, text) {
+                const element = document.createElementNS(namespace, tag);
+                Object.keys(attributes).forEach(function (key) { element.setAttribute(key, attributes[key]); });
+                if (text !== undefined) element.textContent = text;
+                svg.appendChild(element);
+                return element;
+            };
+
+            svg.replaceChildren();
+            for (let tick = 0; tick <= 4; tick += 1) {
+                const value = high - valueRange * tick / 4;
+                const lineY = y(value);
+                addSvgElement('line', {x1: margin.left, y1: lineY, x2: width - margin.right, y2: lineY, class: 'market-chart-gridline'});
+                addSvgElement('text', {x: margin.left - 10, y: lineY + 4, 'text-anchor': 'end', class: 'market-chart-axis-label'}, '₹' + value.toFixed(0));
+            }
+
+            const path = points.map(function (point, index) {
+                return (index === 0 ? 'M' : 'L') + x(index) + ' ' + y(Number(point.price));
+            }).join(' ');
+            addSvgElement('path', {d: path, fill: 'none', stroke: lineColor, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'});
+            points.forEach(function (point, index) {
+                const circle = addSvgElement('circle', {cx: x(index), cy: y(Number(point.price)), r: 3.5, fill: lineColor, class: 'market-chart-point'});
+                const title = document.createElementNS(namespace, 'title');
+                title.textContent = point.date + ': ₹' + Number(point.price).toFixed(2);
+                circle.appendChild(title);
+            });
+
+            const labelIndexes = Array.from(new Set([0, Math.floor((points.length - 1) / 2), points.length - 1]));
+            labelIndexes.forEach(function (index) {
+                addSvgElement('text', {x: x(index), y: height - 12, 'text-anchor': 'middle', class: 'market-chart-axis-label'}, points[index].date);
+            });
+        }
+
+        {% if market_data and market_data.history %}
+        drawMarketChart('marketHistoryChart', {{ market_data.history|tojson }}, '#28784d');
+        {% endif %}
+        {% if market_data and market_data.future_estimates %}
+        drawMarketChart('marketForecastChart', {{ market_data.future_estimates|tojson }}, '#bb7a25');
+        {% endif %}
+
         const marketLocationDisplay = document.getElementById('marketLocationDisplay');
         const marketLocationInput = document.querySelector('input[name="location"]');
 
@@ -87,7 +217,7 @@
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
 
-                fetch('/location-detect', {
+                fetch({{ url_for('location_detect')|tojson }}, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ lat: lat, lon: lon })

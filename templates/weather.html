@@ -17,6 +17,154 @@
             <p>Use local weather to help plan field work. Advice is based on the latest available conditions, not a guarantee of crop success.</p>
         </div>
 
+        <form method="POST" action="{{ url_for('weather') }}" class="weather-location-check-form">
+            <label for="farmerWeatherLocation">Enter Farmer Location</label>
+            <div class="weather-location-check-controls">
+                <input
+                    id="farmerWeatherLocation"
+                    type="text"
+                    name="farmer_location"
+                    value="{{ check_location }}"
+                    placeholder="Enter village/city, district, state"
+                    maxlength="200"
+                    required
+                >
+                <button class="primary-btn" type="submit" name="action" value="check_weather">Check Weather</button>
+            </div>
+            <small>Example: Mandapeta, Andhra Pradesh</small>
+        </form>
+
+        {% if check_weather_error %}
+        <div class="alert-box weather-page-error" role="alert">{{ check_weather_error }}</div>
+        {% endif %}
+
+        {% if check_weather_result %}
+        <section class="weather-checked-result" aria-labelledby="checked-weather-title">
+            <div class="weather-location-banner">
+                <span class="weather-location-icon" aria-hidden="true">📍</span>
+                <div>
+                    <span class="section-eyebrow">WEATHER FOR ENTERED LOCATION</span>
+                    <strong id="checked-weather-title">{{ check_location }}</strong>
+                    {% if check_weather_result.location and check_weather_result.location|lower != check_location|lower %}
+                    <span>Matched weather location: {{ check_weather_result.location }}</span>
+                    {% endif %}
+                </div>
+                <small>{{ check_weather_result.date or '' }}</small>
+            </div>
+
+            <section class="weather-section-block" aria-labelledby="checked-weather-current-title">
+                <div class="weather-section-heading">
+                    <span class="section-eyebrow">LIVE WEATHER LOOKUP</span>
+                    <h2 id="checked-weather-current-title">Current Weather</h2>
+                </div>
+                <div class="weather-current-grid">
+                    <article class="weather-current-card weather-current-primary">
+                        <span class="weather-card-icon" aria-hidden="true">{{ check_weather_result.icon or '🌤️' }}</span>
+                        <span class="weather-metric-label">Temperature</span>
+                        <strong>{{ check_weather_result.temperature if check_weather_result.temperature is not none else 'Unavailable' }}{% if check_weather_result.temperature is not none %}<small>°C</small>{% endif %}</strong>
+                        <span class="weather-current-condition">{{ check_weather_result.condition or 'Condition unavailable' }}</span>
+                    </article>
+                    <article class="weather-current-card">
+                        <span class="weather-card-icon" aria-hidden="true">💧</span>
+                        <span class="weather-metric-label">Humidity</span>
+                        <strong>{{ check_weather_result.humidity if check_weather_result.humidity is not none else 'Unavailable' }}{% if check_weather_result.humidity is not none %}<small>%</small>{% endif %}</strong>
+                    </article>
+                    <article class="weather-current-card">
+                        <span class="weather-card-icon" aria-hidden="true">🌧️</span>
+                        <span class="weather-metric-label">Rainfall today</span>
+                        <strong>{{ check_weather_result.today_rainfall if check_weather_result.today_rainfall is not none else 'Unavailable' }}{% if check_weather_result.today_rainfall is not none %}<small> mm</small>{% endif %}</strong>
+                    </article>
+                    <article class="weather-current-card">
+                        <span class="weather-card-icon" aria-hidden="true">☔</span>
+                        <span class="weather-metric-label">Rain probability</span>
+                        <strong>{{ check_weather_result.today_rain_chance if check_weather_result.today_rain_chance is not none else 'Unavailable' }}{% if check_weather_result.today_rain_chance is not none %}<small>%</small>{% endif %}</strong>
+                    </article>
+                    <article class="weather-current-card">
+                        <span class="weather-card-icon" aria-hidden="true">💨</span>
+                        <span class="weather-metric-label">Wind speed</span>
+                        <strong>{{ check_weather_result.wind_speed if check_weather_result.wind_speed is not none else 'Unavailable' }}{% if check_weather_result.wind_speed is not none %}<small> km/h</small>{% endif %}</strong>
+                    </article>
+                </div>
+                <div class="weather-alert-summary" role="status">
+                    <strong>Weather alerts</strong>
+                    <ul>
+                        {% for alert in check_weather_alerts %}
+                        <li>{{ alert }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <section class="weather-advisory-card weather-check-advisory" aria-labelledby="farming-weather-advice-title">
+                <div class="weather-section-heading">
+                    <span class="section-eyebrow">PRACTICAL GUIDANCE FOR TODAY</span>
+                    <h2 id="farming-weather-advice-title">Farming Weather Advice</h2>
+                    <p>Guidance is based on the available forecast and is not a guarantee. Check field conditions and local agricultural advice.</p>
+                </div>
+                <div class="weather-advice-list">
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">🌱</span>
+                        <p><strong>Sowing:</strong> {{ check_weather_advice.sowing_level }}. {{ check_weather_advice.sowing.reasons|join(' ') }}</p>
+                    </article>
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">💧</span>
+                        <p><strong>Irrigation:</strong> {{ check_weather_advice.irrigation }}</p>
+                    </article>
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">🌾</span>
+                        <p><strong>Crop:</strong> {{ check_weather_advice.crop_summary }}</p>
+                    </article>
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">🧪</span>
+                        <p><strong>Fertilizer:</strong> {{ check_weather_advice.fertilizer_advice }}</p>
+                    </article>
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">🧪</span>
+                        <p><strong>Spraying:</strong> {{ check_weather_advice.pesticide_advice }}</p>
+                    </article>
+                    <article class="weather-advice-item">
+                        <span aria-hidden="true">⚠️</span>
+                        <div>
+                            <strong>Important precautions</strong>
+                            <ul>
+                                {% for step in check_weather_advice.steps %}
+                                <li>{{ step }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="weather-section-heading">
+                    <h3>📅 Next 3–7 day outlook</h3>
+                </div>
+                {% if check_weather_advice.outlook %}
+                <div class="forecast-cards weather-forecast-cards weather-outlook-grid">
+                    {% for day in check_weather_advice.outlook %}
+                    <article class="forecast-day-card weather-forecast-card weather-outlook-card">
+                        <h3>{{ day.weekday or day.date or 'Forecast day' }}</h3>
+                        <p>{{ day.condition or 'Condition unavailable' }}</p>
+                        <div class="weather-outlook-metrics">
+                            <span>High <b>{{ day.max_temp if day.max_temp is not none else 'Unavailable' }}{% if day.max_temp is not none %}°C{% endif %}</b></span>
+                            <span>Low <b>{{ day.min_temp if day.min_temp is not none else 'Unavailable' }}{% if day.min_temp is not none %}°C{% endif %}</b></span>
+                            <span>Rain <b>{{ day.rain_chance if day.rain_chance is not none else 'Unavailable' }}{% if day.rain_chance is not none %}%{% endif %}</b></span>
+                            <span>Rainfall <b>{{ day.rainfall if day.rainfall is not none else 'Unavailable' }}{% if day.rainfall is not none %} mm{% endif %}</b></span>
+                        </div>
+                        {% if day.warning %}<p class="weather-warning" role="note">{{ day.warning }}</p>{% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="weather-empty-forecast" role="status">
+                    <span aria-hidden="true">📅</span>
+                    <p>Forecast data unavailable</p>
+                    <small>No forecast values are available for this location right now.</small>
+                </div>
+                {% endif %}
+            </section>
+        </section>
+        {% endif %}
+
         {% if error_message %}
             <div class="alert-box weather-page-error" role="status">{{ error_message }}</div>
             {% if not recommendation.get('location') %}
@@ -40,6 +188,100 @@
             </div>
             <small>{{ weather_result.date or '' }}</small>
         </section>
+
+        <details class="weather-check-disclosure">
+            <summary class="primary-btn">
+                View saved-location weather advice
+            </summary>
+
+        <section class="weather-advisory-card weather-check-advisory" aria-labelledby="weather-check-title">
+            <div class="weather-section-heading">
+                <span class="section-eyebrow">BASED ON YOUR SAVED LOCATION</span>
+                <h2 id="weather-check-title">Weather Farming Advice</h2>
+                <p>This is general guidance from the available weather readings, not a guarantee. Check your field and local advice before acting.</p>
+            </div>
+
+            <div class="weather-advice-list">
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🌱</span>
+                    <p><strong>Sowing:</strong> {{ weather_check_advice.sowing_level }}. {{ weather_check_advice.sowing.reasons|join(' ') }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">💧</span>
+                    <p><strong>Irrigation:</strong> {{ weather_check_advice.irrigation }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🌾</span>
+                    <p><strong>Recommended crop:</strong> {{ weather_check_advice.crop_summary }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🌧️</span>
+                    <p>{{ weather_check_advice.rain_summary }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🌡️</span>
+                    <p>{{ weather_check_advice.temperature_summary }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">💨</span>
+                    <p>{{ weather_check_advice.wind_summary }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">⚠️</span>
+                    <p><strong>Weather alerts:</strong></p>
+                    <ul>
+                        {% for alert in weather_check_advice.alerts %}
+                        <li>{{ alert }}</li>
+                        {% endfor %}
+                    </ul>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🧪</span>
+                    <p><strong>Fertilizer:</strong> {{ weather_check_advice.fertilizer_advice }}</p>
+                </article>
+                <article class="weather-advice-item">
+                    <span aria-hidden="true">🧪</span>
+                    <p><strong>Pesticide:</strong> {{ weather_check_advice.pesticide_advice }}</p>
+                </article>
+            </div>
+
+            <div class="weather-section-heading">
+                <h3>📅 Important outlook for the next 3–7 days</h3>
+            </div>
+            {% if weather_check_advice.outlook %}
+            <div class="forecast-cards weather-forecast-cards weather-outlook-grid">
+                {% for day in weather_check_advice.outlook %}
+                <article class="forecast-day-card weather-forecast-card weather-outlook-card">
+                    <h3>{{ day.weekday or day.date or 'Forecast day' }}</h3>
+                    <p>{{ day.condition or 'Condition unavailable' }}</p>
+                    <div class="weather-outlook-metrics">
+                        <span>High <b>{{ day.max_temp if day.max_temp is not none else 'Unavailable' }}{% if day.max_temp is not none %}°C{% endif %}</b></span>
+                        <span>Low <b>{{ day.min_temp if day.min_temp is not none else 'Unavailable' }}{% if day.min_temp is not none %}°C{% endif %}</b></span>
+                        <span>Rain <b>{{ day.rain_chance if day.rain_chance is not none else 'Unavailable' }}{% if day.rain_chance is not none %}%{% endif %}</b></span>
+                        <span>Rainfall <b>{{ day.rainfall if day.rainfall is not none else 'Unavailable' }}{% if day.rainfall is not none %} mm{% endif %}</b></span>
+                    </div>
+                    {% if day.warning %}<p class="weather-warning" role="note">{{ day.warning }}</p>{% endif %}
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="weather-empty-forecast" role="status">
+                <span aria-hidden="true">📅</span>
+                <p>Forecast data unavailable</p>
+                <small>No 3–7 day outlook is available for this location right now.</small>
+            </div>
+            {% endif %}
+
+            <div class="weather-section-heading">
+                <h3>What should I do today?</h3>
+            </div>
+            <ol class="weather-reason-list">
+                {% for step in weather_check_advice.steps %}
+                <li>{{ step }}</li>
+                {% endfor %}
+            </ol>
+        </section>
+        </details>
 
         <section class="weather-section-block" aria-labelledby="weather-today-title">
             <div class="weather-section-heading">
