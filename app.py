@@ -2,7 +2,6 @@
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
 from functools import wraps
 import io
-import base64
 import json
 import math
 import os
@@ -40,7 +39,6 @@ app.secret_key = "smart_crop_farmer_app_secret"
 # Load the saved model without retraining.
 model_path = os.path.join("model", "crop_recommendation_model.pkl")
 model = joblib.load(model_path)
-MAX_DISEASE_IMAGE_BYTES = 8 * 1024 * 1024
 
 LANGUAGES = {
     "en": {
@@ -758,7 +756,7 @@ def market_trend_from_history(records, latest_record, days):
     return "Stable"
 
 
-def get_market_price(crop_name, location, state=None, district=None):
+def get_market_price(crop_name, location, state=None, district=None, market_name=None):
     crop_name = (crop_name or "").strip()
     crop_name = CROP_MARKET_NAMES.get(crop_name.casefold(), crop_name).title()
     location = (location or "").strip()
@@ -771,16 +769,14 @@ def get_market_price(crop_name, location, state=None, district=None):
     )
 
     if not crop_name or not location:
-        return None, "Enter a crop and location to look up a mandi price."
+        return None, "Enter a crop and a district or location to look up a mandi price."
 
     data_gov_key = os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
     if data_gov_key:
         if not state or not district:
-            app.logger.warning(
-                "Market lookup unavailable: state and district are required for Agmarknet."
-            )
             return None, (
-                "Live market price is temporarily unavailable for this location."
+                "Agmarknet needs a district and state to find mandi records. "
+                "Enter a district or town and its state, then try again."
             )
         agmarknet_crop_name = AGMARKNET_CROP_NAMES.get(
             crop_name.casefold(), crop_name
@@ -796,24 +792,57 @@ def get_market_price(crop_name, location, state=None, district=None):
         }
         if district:
             params["filters[district]"] = district
+        if market_name:
+            params["filters[market]"] = market_name
 
         try:
             response = requests.get(api_url, params=params, timeout=15)
+            if response.status_code in (401, 403):
+                app.logger.warning("Agmarknet rejected the configured API key (HTTP %s).", response.status_code)
+                return None, (
+                    "The Agmarknet API key was rejected. Check DATA_GOV_IN_API_KEY "
+                    "in the server .env file and confirm that the key is active."
+                )
+            if response.status_code == 429:
+                app.logger.warning("Agmarknet rate limit reached.")
+                return None, (
+                    "The government mandi data service is temporarily rate-limited. "
+                    "Please try again later."
+                )
+            if response.status_code >= 500:
+                app.logger.warning("Agmarknet is unavailable (HTTP %s).", response.status_code)
+                return None, (
+                    "The government mandi data service is temporarily unavailable. "
+                    "Please try again later."
+                )
             if response.status_code != 200:
                 app.logger.warning(
                     "Agmarknet market request failed with HTTP status %s.", response.status_code
                 )
                 return None, (
-                    "Live market price is currently unavailable. "
-                    "The mandi data service could not complete the request; please try again later."
+                    f"The government mandi data service rejected the request (HTTP {response.status_code}). "
+                    "Check the crop, district, and state, then try again."
                 )
-            payload = response.json()
+            try:
+                payload = response.json()
+            except ValueError:
+                app.logger.warning("Agmarknet returned invalid JSON.")
+                return None, (
+                    "The government mandi data service returned an unreadable response. "
+                    "No price was shown; please try again later."
+                )
+            if not isinstance(payload, dict):
+                app.logger.warning("Agmarknet returned a response that was not an object.")
+                return None, (
+                    "The government mandi data service returned an unexpected response. "
+                    "No price was shown; please try again later."
+                )
             records = payload.get("records", []) if isinstance(payload, dict) else []
             if not isinstance(records, list):
                 app.logger.warning("Agmarknet returned an invalid records value.")
                 return None, (
-                    "Live market price is currently unavailable. "
-                    "The mandi data service returned an unexpected response."
+                    "The government mandi data service returned invalid market records. "
+                    "No price was shown; please try again later."
                 )
             records = [record for record in records if isinstance(record, dict)]
             crop_records = [
@@ -831,6 +860,12 @@ def get_market_price(crop_name, location, state=None, district=None):
                 if str(record.get("state", "")).strip().casefold() == state.casefold()
                 and str(record.get("district", "")).strip().casefold() == district.casefold()
             ]
+            if market_name:
+                crop_records = [
+                    record for record in crop_records
+                    if str(record.get("market", "")).strip().casefold()
+                    == market_name.casefold()
+                ]
 
             for record in crop_records:
                 try:
@@ -848,7 +883,9 @@ def get_market_price(crop_name, location, state=None, district=None):
                     state,
                 )
                 return None, (
-                    f"No live mandi record was found for {crop_name} in {district}."
+                    f"No reported {crop_name} mandi price was found for "
+                    f"{market_name + ', ' if market_name else ''}{district}, {state}. "
+                    "Try another nearby market or check again later."
                 )
             priced_records.sort(
                 key=lambda record: parse_market_date(record.get("arrival_date")) or datetime.min.date(),
@@ -859,8 +896,8 @@ def get_market_price(crop_name, location, state=None, district=None):
             if not market_name:
                 app.logger.warning("Agmarknet's latest priced record has no market name.")
                 return None, (
-                    "Live market price is currently unavailable. "
-                    "The mandi data service did not identify a market for this listing."
+                    "Agmarknet returned a price record without a mandi name. "
+                    "No price was shown for this incomplete record."
                 )
             mandi_records = [
                 record for record in priced_records
@@ -893,14 +930,29 @@ def get_market_price(crop_name, location, state=None, district=None):
                 "history": history,
                 "future_estimates": estimate_future_market_prices(history),
             }, None
-        except (requests.RequestException, ValueError, TypeError, AttributeError) as error:
+        except requests.Timeout:
+            app.logger.warning("Agmarknet market request timed out.")
+            return None, (
+                "The government mandi data service took too long to respond. "
+                "Please try again later."
+            )
+        except requests.RequestException as error:
             app.logger.warning(
-                "Agmarknet market request or response parsing failed: error_type=%s",
+                "Agmarknet market request failed: error_type=%s",
                 type(error).__name__,
             )
             return None, (
-                "Live market price is currently unavailable. "
-                "The mandi data service could not be reached or returned invalid data."
+                "The government mandi data service could not be reached. "
+                "Check your connection or try again later."
+            )
+        except (ValueError, TypeError, AttributeError) as error:
+            app.logger.warning(
+                "Agmarknet market response parsing failed: error_type=%s",
+                type(error).__name__,
+            )
+            return None, (
+                "The government mandi data service returned invalid market data. "
+                "No price was shown; please try again later."
             )
 
     api_url = os.environ.get("MARKET_API_URL", "").strip()
@@ -910,7 +962,10 @@ def get_market_price(crop_name, location, state=None, district=None):
         app.logger.warning(
             "Market data unavailable: configure DATA_GOV_IN_API_KEY or MARKET_API_URL."
         )
-        return None, "Live market price is temporarily unavailable."
+        return None, (
+            "Government mandi prices are not configured. Add a valid data.gov.in API key "
+            "as DATA_GOV_IN_API_KEY in the server .env file. No price was generated."
+        )
 
     try:
         headers = {"User-Agent": "SmartCropApp/1.0"}
@@ -922,23 +977,50 @@ def get_market_price(crop_name, location, state=None, district=None):
             params["api_key"] = api_key
 
         response = requests.get(api_url, params=params, headers=headers, timeout=10)
+        if response.status_code in (401, 403):
+            return None, (
+                "The configured market API rejected its credentials. Check MARKET_API_KEY "
+                "in the server .env file."
+                if api_key
+                else "The configured market API requires credentials. Set MARKET_API_KEY "
+                "in the server .env file."
+            )
+        if response.status_code == 429:
+            return None, (
+                "The configured market data service is temporarily rate-limited. "
+                "Please try again later."
+            )
+        if response.status_code >= 500:
+            return None, (
+                "The configured market data service is temporarily unavailable. "
+                "Please try again later."
+            )
         if response.status_code != 200:
             app.logger.warning(
                 "Configured market API request failed with HTTP status %s.", response.status_code
             )
             return None, (
-                "Live market price is currently unavailable. "
-                "The configured market data service could not complete the request."
+                f"The configured market data service rejected the request "
+                f"(HTTP {response.status_code}). Check the crop and location."
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError:
+            return None, (
+                "The configured market data service returned an unreadable response. "
+                "No price was shown; please try again later."
+            )
         app.logger.info(
             "Configured market API response received: http_status=%s payload_type=%s",
             response.status_code,
             type(data).__name__,
         )
         if not data:
-            return None, "Live market price is currently unavailable."
+            return None, (
+                "The configured market data service returned no price records "
+                "for this crop and location."
+            )
 
         market_record = None
         if isinstance(data, list):
@@ -955,14 +1037,14 @@ def get_market_price(crop_name, location, state=None, district=None):
         if market_record is None:
             app.logger.info("Configured market API returned no matching record.")
             return None, (
-                "Live market price is currently unavailable. "
-                "No matching crop and location listing was returned."
+                "The configured market data service returned no listing for this crop "
+                "and location. Try checking the crop and location."
             )
         if not isinstance(market_record, dict):
             app.logger.warning("Configured market API returned a record in an unsupported format.")
             return None, (
-                "Live market price is currently unavailable. "
-                "The configured service returned an unexpected response."
+                "The configured market data service returned a record in an unsupported format. "
+                "No price was shown."
             )
 
         def parse_price(*fields):
@@ -1007,8 +1089,8 @@ def get_market_price(crop_name, location, state=None, district=None):
                 "Configured market API response is missing a valid price, market name, or data source."
             )
             return None, (
-                "Live market price is currently unavailable. "
-                "The configured service did not return a valid price and market."
+                "The configured market data service did not include a valid price and mandi name. "
+                "No price was shown for this incomplete listing."
             )
 
         return {
@@ -1031,14 +1113,29 @@ def get_market_price(crop_name, location, state=None, district=None):
             "history": history,
             "future_estimates": estimate_future_market_prices(history),
         }, None
-    except (requests.RequestException, ValueError, TypeError, AttributeError) as error:
+    except requests.Timeout:
+        app.logger.warning("Configured market API request timed out.")
+        return None, (
+            "The configured market data service took too long to respond. "
+            "Please try again later."
+        )
+    except requests.RequestException as error:
         app.logger.warning(
-            "Configured market API request or response parsing failed: error_type=%s",
+            "Configured market API request failed: error_type=%s",
             type(error).__name__,
         )
         return None, (
-            "Live market price is currently unavailable. "
-            "The configured market data service could not be reached or returned invalid data."
+            "The configured market data service could not be reached. "
+            "Check your connection or try again later."
+        )
+    except (ValueError, TypeError, AttributeError) as error:
+        app.logger.warning(
+            "Configured market API response parsing failed: error_type=%s",
+            type(error).__name__,
+        )
+        return None, (
+            "The configured market data service returned invalid market data. "
+            "No price was shown; please try again later."
         )
 
 
@@ -1099,28 +1196,47 @@ def resolve_market_location_details(location, latitude=None, longitude=None):
     }
 
 
-def get_market_price_for_location(crop_name, location):
+def get_market_price_for_location(crop_name, location, state=None, market_name=None):
     if not os.environ.get("DATA_GOV_IN_API_KEY", "").strip():
         return get_market_price(crop_name, location)
 
     try:
         location_details = resolve_market_location_details(location)
+    except requests.Timeout:
+        app.logger.warning("Market location lookup timed out.")
+        return None, (
+            "The location lookup took too long. Check the district or town name "
+            "and try again."
+        )
     except (requests.RequestException, ValueError, TypeError, KeyError) as error:
         app.logger.warning(
             "Market location resolution failed: error_type=%s",
             type(error).__name__,
         )
-        return None, "Live market price is temporarily unavailable for this location."
+        return None, (
+            "The district and state could not be confirmed for this location. "
+            "Enter a district or town and its state, then try again."
+        )
 
-    state = location_details.get("state")
+    state = (state or location_details.get("state") or "").strip()
     district = location_details.get("district")
     if not state or not district:
         app.logger.info(
-            "Market location could not be matched to a state and district: location=%s",
+            "Market location could not be matched to a state and district: location=%s state=%s",
             location[:120],
+            state[:80],
         )
-        return None, "Live market price is temporarily unavailable for this location."
-    return get_market_price(crop_name, location, state=state, district=district)
+        return None, (
+            "A district and state are needed to find government mandi records. "
+            "Enter the district or town in Location and its state in State."
+        )
+    return get_market_price(
+        crop_name,
+        location,
+        state=state,
+        district=district,
+        market_name=market_name,
+    )
 
 
 def market_price_per_kg(market_data):
@@ -2723,32 +2839,33 @@ def market():
         request.values.get("location", "").strip()
         or str(recommendation.get("location") or "").strip()
     )
+    selected_state = request.values.get("state", "").strip()
+    selected_market = request.values.get("market_name", "").strip()
     market_data = None
     market_provider_configured = bool(
         os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
         or os.environ.get("MARKET_API_URL", "").strip()
     )
-    if not selected_crop:
+    if not market_provider_configured:
+        market_message = "Live mandi price data is currently unavailable. Please try again later."
+    elif not selected_crop:
         market_message = (
-            "Live market prices are currently unavailable. "
             "Enter/select a crop to view available market price information."
-            if not market_provider_configured
-            else "Enter/select a crop to view available market price information."
         )
     elif not selected_location:
         market_message = (
-            "Live market prices are currently unavailable. "
-            "Enter a market location to check available prices for this crop."
-            if not market_provider_configured
-            else "Enter a market location to check available prices for this crop."
+            "Enter a district or town in Location and its state to check reported mandi prices."
         )
     else:
         market_data, market_error = get_market_price_for_location(
-            selected_crop, selected_location
+            selected_crop,
+            selected_location,
+            state=selected_state or None,
+            market_name=selected_market or None,
         )
         market_message = None if market_data else market_error or (
-            "Live market prices are currently unavailable. "
-            "Enter/select a crop to view available market price information."
+            "No matching reported mandi price is available for these details. "
+            "Check the crop, district, state, and market, then try again."
         )
 
     return render_template(
@@ -2757,6 +2874,8 @@ def market():
         market_message=market_message,
         selected_crop=selected_crop,
         selected_location=selected_location,
+        selected_state=selected_state,
+        selected_market=selected_market,
         market_data=market_data,
         translations=get_translations(),
         language=get_language(),
@@ -2904,67 +3023,6 @@ def profit():
         market_data=market_data,
         market_message=market_message,
         form_error=form_error,
-        translations=get_translations(),
-        language=get_language(),
-    )
-
-
-@app.route("/disease", methods=["GET", "POST"])
-def disease():
-    upload_error = None
-    detection_status = None
-    preview_data_uri = None
-    if request.method == "POST":
-        if request.content_length and request.content_length > MAX_DISEASE_IMAGE_BYTES + 128 * 1024:
-            upload_error = "The image is too large. Please upload an image smaller than 8 MB."
-        else:
-            uploaded_file = next(
-                (
-                    photo for photo in request.files.getlist("photo")
-                    if photo and photo.filename
-                ),
-                None,
-            )
-            if uploaded_file is None:
-                upload_error = "Please choose or take a crop/leaf photo first."
-            else:
-                extension = os.path.splitext(uploaded_file.filename)[1].lower()
-                image_signatures = {
-                    ".jpg": (b"\xff\xd8\xff", "image/jpeg"),
-                    ".jpeg": (b"\xff\xd8\xff", "image/jpeg"),
-                    ".png": (b"\x89PNG\r\n\x1a\n", "image/png"),
-                    ".webp": (b"RIFF", "image/webp"),
-                }
-                image_info = image_signatures.get(extension)
-                image_bytes = uploaded_file.stream.read(MAX_DISEASE_IMAGE_BYTES + 1)
-                is_valid_image = bool(
-                    image_info
-                    and image_bytes
-                    and len(image_bytes) <= MAX_DISEASE_IMAGE_BYTES
-                    and image_bytes.startswith(image_info[0])
-                    and (
-                        extension != ".webp"
-                        or image_bytes[8:12] == b"WEBP"
-                    )
-                    and uploaded_file.mimetype in ("", image_info[1])
-                )
-                if len(image_bytes) > MAX_DISEASE_IMAGE_BYTES:
-                    upload_error = "The image is too large. Please upload an image smaller than 8 MB."
-                elif not is_valid_image:
-                    upload_error = "Please upload a valid JPEG, PNG, or WebP image."
-                else:
-                    mime_type = image_info[1]
-                    preview_data_uri = (
-                        f"data:{mime_type};base64,"
-                        f"{base64.b64encode(image_bytes).decode('ascii')}"
-                    )
-                    detection_status = "Disease detection model is not configured yet."
-
-    return render_template(
-        "disease.html",
-        upload_error=upload_error,
-        detection_status=detection_status,
-        preview_data_uri=preview_data_uri,
         translations=get_translations(),
         language=get_language(),
     )

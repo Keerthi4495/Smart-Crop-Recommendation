@@ -10,7 +10,6 @@
             <a class="nav-link" href="{{ url_for('home') }}#crop-recommendation">Crop Recommendation</a>
             <a class="nav-link{% if request.endpoint in ['weather', 'forecast'] %} active{% endif %}" href="{{ url_for('weather') }}">{{ t.weather }}</a>
             <a class="nav-link{% if request.endpoint == 'market' %} active{% endif %}" href="{{ url_for('market') }}">{{ t.market_price }}</a>
-            <a class="nav-link{% if request.endpoint == 'disease' %} active{% endif %}" href="{{ url_for('disease') }}">Disease Detection</a>
             <a class="nav-link{% if request.endpoint == 'profit' %} active{% endif %}" href="{{ url_for('profit') }}">Profit &amp; Loss</a>
             <a class="nav-link{% if request.endpoint in ['chatbot', 'assistant'] %} active{% endif %}" href="{{ url_for('chatbot') }}">{{ t.ai_chatbot }}</a>
             {% if session.get("user_id") %}

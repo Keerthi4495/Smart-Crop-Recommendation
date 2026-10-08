@@ -26,8 +26,12 @@
                 {% endfor %}
             </select>
 
-            <label for="marketLocation">Market / mandi location</label>
+            <label for="marketLocation">District / location</label>
             <input id="marketLocation" type="text" name="location" value="{{ selected_location }}" placeholder="Enter village, town or district" required>
+            <label for="marketState">State</label>
+            <input id="marketState" type="text" name="state" value="{{ selected_state }}" placeholder="Enter state, e.g. Andhra Pradesh">
+            <label for="marketMandi">Market / mandi (optional)</label>
+            <input id="marketMandi" type="text" name="market_name" value="{{ selected_market }}" placeholder="Enter a mandi to narrow results">
             <button type="button" class="secondary-button" id="useMarketLocationBtn">Use My Location</button>
             <button type="submit">Check Market</button>
         </form>
