@@ -1,6 +1,8 @@
 # Simple MySQL connection settings.
 # Change these values to your MySQL username and password.
-DB_HOST = "localhost"
-DB_USER = "root"
-DB_PASSWORD = "ROOT@123"
-DB_NAME = "crop_app"
+import os
+
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_NAME = os.getenv("DB_NAME", "crop_app")
