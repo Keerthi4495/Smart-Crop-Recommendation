@@ -16,10 +16,7 @@ class MarketPriceFeatureTests(unittest.TestCase):
             response = self.client.get("/market")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(
-            b"Live mandi price data is currently unavailable. Please try again later.",
-            response.data,
-        )
+        self.assertIn(b"Select a crop to check live mandi prices.", response.data)
         for field in (b"crop_name", b"location", b"state", b"market_name"):
             self.assertIn(field, response.data)
         self.assertNotIn(b"DATA_GOV_IN_API_KEY", response.data)
@@ -38,12 +35,12 @@ class MarketPriceFeatureTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            b"Live mandi price data is currently unavailable. Please try again later.",
+            b"Live market price is temporarily unavailable. Please try again later.",
             response.data,
         )
         for value in (b'value="Rice"', b'value="Mandapeta"', b'value="Andhra Pradesh"'):
             self.assertIn(value, response.data)
-        self.assertNotIn(b"Latest reported price", response.data)
+        self.assertNotIn(b"Live Mandi Price", response.data)
 
     def test_agmarknet_request_filters_crop_state_district_and_optional_mandi(self):
         response = Mock(status_code=200, ok=True)
@@ -51,6 +48,7 @@ class MarketPriceFeatureTests(unittest.TestCase):
             "records": [
                 {
                     "commodity": "Rice",
+                    "variety": "Common",
                     "state": "Andhra Pradesh",
                     "district": "East Godavari",
                     "market": "Mandapeta",
@@ -90,7 +88,14 @@ class MarketPriceFeatureTests(unittest.TestCase):
         self.assertEqual(result["modal_price"], 2250)
         self.assertEqual(result["market_name"], "Mandapeta")
         self.assertEqual(result["price_date"], "2026-10-07")
-        self.assertEqual(result["source"], "data.gov.in — Agmarknet daily mandi prices")
+        self.assertEqual(result["market_state"], "Andhra Pradesh")
+        self.assertEqual(result["commodity"], "Rice")
+        self.assertEqual(result["variety"], "Common")
+        self.assertEqual(result["last_updated"], "2026-10-07")
+        self.assertEqual(
+            result["source"],
+            "Government agricultural market data (AGMARKNET via data.gov.in)",
+        )
         api_call.assert_called_once()
         self.assertEqual(
             api_call.call_args.kwargs["params"]["filters[commodity]"], "Rice"
@@ -104,6 +109,7 @@ class MarketPriceFeatureTests(unittest.TestCase):
         self.assertEqual(
             api_call.call_args.kwargs["params"]["filters[market]"], "Mandapeta"
         )
+        self.assertEqual(api_call.call_args.kwargs["timeout"], (5, 15))
 
     def test_market_form_passes_entered_district_state_and_mandi(self):
         response = Mock(status_code=200, ok=True)
@@ -144,64 +150,127 @@ class MarketPriceFeatureTests(unittest.TestCase):
             )
 
         self.assertEqual(page.status_code, 200)
-        self.assertIn(b"Latest reported price", page.data)
+        self.assertIn(b"Live Mandi Price", page.data)
+        self.assertIn(b"Government agricultural market data", page.data)
         self.assertIn(b"2250", page.data)
         self.assertIn(b"Mandapeta", page.data)
 
-    def test_agmarknet_timeout_has_specific_error(self):
-        with (
-            patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
-            patch("app.requests.get", side_effect=requests.Timeout),
-        ):
-            result, error = smartfarm_app.get_market_price(
-                "Rice", "Mandapeta", state="Andhra Pradesh", district="East Godavari"
-            )
+    def test_market_form_does_not_show_provider_errors_to_farmers(self):
+        invalid_json = Mock(status_code=200, ok=True)
+        invalid_json.json.side_effect = ValueError("private JSON parse details")
+        rate_limited = Mock(status_code=429, ok=False)
+        rejected_key = Mock(status_code=403, ok=False)
+        failures = (
+            {"side_effect": requests.Timeout("private timeout detail")},
+            {"side_effect": requests.ConnectionError("private connection detail")},
+            {"return_value": invalid_json},
+            {"return_value": rate_limited},
+            {"return_value": rejected_key},
+        )
 
-        self.assertIsNone(result)
-        self.assertIn("took too long", error)
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__):
+                with (
+                    patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
+                    patch(
+                        "app.resolve_market_location_details",
+                        return_value={
+                            "location": "Mandapeta",
+                            "state": "Andhra Pradesh",
+                            "district": "East Godavari",
+                        },
+                    ),
+                    patch("app.requests.get", **failure),
+                ):
+                    response = self.client.post(
+                        "/market",
+                        data={
+                            "crop_name": "Rice",
+                            "location": "Mandapeta",
+                            "state": "Andhra Pradesh",
+                        },
+                    )
 
-    def test_agmarknet_invalid_json_has_specific_error(self):
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(
+                    b"Live market price is temporarily unavailable. Please try again later.",
+                    response.data,
+                )
+                self.assertNotIn(b"private", response.data)
+                self.assertNotIn(b"DATA_GOV_IN_API_KEY", response.data)
+                self.assertNotIn(b"429", response.data)
+
+    def test_market_lookup_can_search_by_crop_without_a_selected_mandi(self):
         response = Mock(status_code=200, ok=True)
-        response.json.side_effect = ValueError("invalid JSON")
+        response.json.return_value = {
+            "records": [
+                {
+                    "commodity": "Rice",
+                    "state": "Andhra Pradesh",
+                    "district": "East Godavari",
+                    "market": "Mandapeta",
+                    "arrival_date": "2026-10-07",
+                    "min_price": "2100",
+                    "max_price": "2400",
+                    "modal_price": "2250",
+                }
+            ]
+        }
         with (
             patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
-            patch("app.requests.get", return_value=response),
+            patch("app.requests.get", return_value=response) as api_call,
         ):
             result, error = smartfarm_app.get_market_price(
-                "Rice", "Mandapeta", state="Andhra Pradesh", district="East Godavari"
+                "Rice", "", state="Andhra Pradesh"
+            )
+
+        self.assertIsNone(error)
+        self.assertEqual(result["market_name"], "Mandapeta")
+        params = api_call.call_args.kwargs["params"]
+        self.assertEqual(params["filters[commodity]"], "Rice")
+        self.assertEqual(params["filters[state]"], "Andhra Pradesh")
+        self.assertNotIn("filters[market]", params)
+
+    def test_invalid_crop_is_not_sent_to_official_api(self):
+        with (
+            patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
+            patch("app.requests.get") as api_call,
+        ):
+            result, error = smartfarm_app.get_market_price(
+                "Unlisted Crop", "Mandapeta", state="Andhra Pradesh"
             )
 
         self.assertIsNone(result)
-        self.assertIn("unreadable response", error)
+        self.assertEqual(
+            error,
+            "Live market price is temporarily unavailable. Please try again later.",
+        )
+        api_call.assert_not_called()
 
-    def test_agmarknet_rejected_api_key_has_specific_error(self):
-        response = Mock(status_code=403, ok=False)
-        with (
-            patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
-            patch("app.requests.get", return_value=response),
-        ):
-            result, error = smartfarm_app.get_market_price(
-                "Rice", "Mandapeta", state="Andhra Pradesh", district="East Godavari"
-            )
-
-        self.assertIsNone(result)
-        self.assertIn("API key was rejected", error)
-        self.assertIn("DATA_GOV_IN_API_KEY", error)
-
-    def test_agmarknet_no_records_reports_unavailable_crop_and_area(self):
+    def test_agmarknet_empty_result_has_farmer_friendly_message(self):
         response = Mock(status_code=200, ok=True)
         response.json.return_value = {"records": []}
         with (
             patch.dict(os.environ, {"DATA_GOV_IN_API_KEY": "test-key"}, clear=True),
+            patch(
+                "app.resolve_market_location_details",
+                return_value={
+                    "location": "Mandapeta",
+                    "state": "Andhra Pradesh",
+                    "district": "East Godavari",
+                },
+            ),
             patch("app.requests.get", return_value=response),
         ):
-            result, error = smartfarm_app.get_market_price(
-                "Rice", "Mandapeta", state="Andhra Pradesh", district="East Godavari"
+            result, error = smartfarm_app.get_market_price_for_location(
+                "Rice", "Mandapeta", state="Andhra Pradesh"
             )
 
         self.assertIsNone(result)
-        self.assertIn("No reported Rice mandi price", error)
-        self.assertIn("East Godavari, Andhra Pradesh", error)
+        self.assertEqual(
+            error,
+            "Live market price is temporarily unavailable. Please try again later.",
+        )
 
 
 if __name__ == "__main__":

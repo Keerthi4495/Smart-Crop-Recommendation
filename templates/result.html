@@ -10,6 +10,9 @@
     {% include "_nav.html" %}
 
     <main class="page-shell result-page">
+        {% if database_message %}
+        <div class="alert-box" role="status">{{ database_message }}</div>
+        {% endif %}
         <section class="result-card crop-recommendation-card">
             <div class="result-card-heading">
                 <h1><span aria-hidden="true">🌱</span> Recommended Crop</h1>

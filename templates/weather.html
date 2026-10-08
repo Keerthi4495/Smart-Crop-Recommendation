@@ -17,6 +17,10 @@
             <p>Use local weather to help plan field work. Advice is based on the latest available conditions, not a guarantee of crop success.</p>
         </div>
 
+        {% if database_message %}
+        <div class="alert-box" role="status">{{ database_message }}</div>
+        {% endif %}
+
         <form method="POST" action="{{ url_for('weather') }}" class="weather-location-check-form">
             <label for="farmerWeatherLocation">Enter Farmer Location</label>
             <div class="weather-location-check-controls">

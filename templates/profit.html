@@ -15,6 +15,10 @@
             <p>Estimate cultivation costs and expected returns using your own selling price. This planning estimate is not a guarantee.</p>
         </section>
 
+        {% if database_message %}
+        <div class="alert-box" role="status">{{ database_message }}</div>
+        {% endif %}
+
         <section class="section-card profit-calculator">
             <div class="profit-disclaimer"><span aria-hidden="true">ⓘ</span> Live mandi information is an optional reference. You can calculate your estimate with your own expected selling price even when market data is unavailable.</div>
             {% if form_error %}<div class="alert-box" role="alert">{{ form_error }}</div>{% endif %}

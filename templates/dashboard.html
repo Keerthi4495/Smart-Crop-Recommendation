@@ -9,6 +9,9 @@
 <body>
     {% include "_nav.html" %}
     <main class="page-shell dashboard-page">
+        {% if database_message %}
+        <div class="alert-box" role="status">{{ database_message }}</div>
+        {% endif %}
         {% if is_authenticated %}
         <section class="dashboard-welcome">
             <div>

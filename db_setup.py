@@ -1,26 +1,19 @@
-﻿import mysql.connector
-from db_config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
+from db_config import DB_NAME, ensure_prediction_columns, get_mysql_connection
 
 
 def create_database():
-    connection = mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-    )
-    cursor = connection.cursor()
-    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
-    cursor.close()
-    connection.close()
+    connection = get_mysql_connection(include_database=False)
+    try:
+        cursor = connection.cursor()
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}`")
+        cursor.close()
+    finally:
+        if connection.is_connected():
+            connection.close()
 
 
 def create_tables():
-    connection = mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-    )
+    connection = get_mysql_connection()
     cursor = connection.cursor()
 
     cursor.execute(
@@ -78,15 +71,7 @@ def create_tables():
         """
     )
 
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS username VARCHAR(50)")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS nitrogen FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS phosphorus FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS potassium FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS temperature FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS humidity FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS ph_value FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS rainfall FLOAT")
-    cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS crop_name VARCHAR(50)")
+    ensure_prediction_columns(cursor)
 
     connection.commit()
     cursor.close()

@@ -12,8 +12,12 @@
         <div class="page-header">
             <span class="section-eyebrow">MARKET INFORMATION FOR YOUR AREA</span>
             <h1>Market Price</h1>
-            <p>Check the latest reported price for your crop and local mandi when market data is available.</p>
+            <p>Check the latest reported government mandi price for your crop and area.</p>
         </div>
+
+        {% if database_message %}
+        <div class="alert-box" role="status">{{ database_message }}</div>
+        {% endif %}
 
         <div id="marketLocationDisplay" class="success-box" style="display:none;"></div>
 
@@ -27,7 +31,7 @@
             </select>
 
             <label for="marketLocation">District / location</label>
-            <input id="marketLocation" type="text" name="location" value="{{ selected_location }}" placeholder="Enter village, town or district" required>
+            <input id="marketLocation" type="text" name="location" value="{{ selected_location }}" placeholder="Enter village, town or district">
             <label for="marketState">State</label>
             <input id="marketState" type="text" name="state" value="{{ selected_state }}" placeholder="Enter state, e.g. Andhra Pradesh">
             <label for="marketMandi">Market / mandi (optional)</label>
@@ -38,9 +42,12 @@
 
         {% if market_data %}
         <section class="success-box market-result-card" aria-live="polite">
-            <h3>{{ selected_crop }}</h3>
-            <p class="market-result-location"><strong>Location:</strong> {{ selected_location }}</p>
-            <h4>Latest reported price</h4>
+            <h3>Live Mandi Price</h3>
+            <p class="market-result-location"><strong>Crop:</strong> {{ market_data.crop_name }}</p>
+            <p class="market-result-location"><strong>State:</strong> {{ market_data.market_state or selected_state or 'Not reported' }}</p>
+            <p class="market-result-location"><strong>District:</strong> {{ market_data.market_district or 'Not reported' }}</p>
+            <p class="market-result-location"><strong>Market / mandi:</strong> {{ market_data.market_name }}</p>
+            <p class="market-result-location"><strong>Commodity / variety:</strong> {{ market_data.commodity }}{% if market_data.variety %} / {{ market_data.variety }}{% else %} / Not reported{% endif %}</p>
             <p class="market-result-price">₹{{ market_data.current_price }}{% if market_data.price_unit %} <span>{{ market_data.price_unit|replace('₹', '') }}</span>{% endif %}</p>
             <div class="market-price-summary" aria-label="Price range">
                 <div>
@@ -57,9 +64,8 @@
                 </div>
             </div>
             {% if market_data.price_unit %}<p class="market-price-unit">Prices are reported in {{ market_data.price_unit|replace('₹', 'Indian rupees ') }}.</p>{% endif %}
-            <p><strong>Market / mandi:</strong> {{ market_data.market_name or 'Not provided' }}{% if market_data.market_district %}, {{ market_data.market_district }}{% endif %}</p>
-            <p><strong>Latest available date:</strong> {{ market_data.price_date or 'Not provided by source' }}</p>
-            {% if market_data.source %}<p><strong>Source:</strong> {{ market_data.source }}</p>{% endif %}
+            <p><strong>Last updated (official market data date):</strong> {{ market_data.last_updated or market_data.price_date or 'Not reported by source' }}</p>
+            <p><strong>Source:</strong> Government agricultural market data</p>
 
             <section class="market-history-section" aria-labelledby="marketHistoryHeading">
                 <h4 id="marketHistoryHeading">Recent historical prices</h4>

@@ -6,32 +6,16 @@ import json
 import math
 import os
 import re
-from urllib.parse import urlparse
 import joblib
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-from db_config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
-
-
-def load_env_file():
-    env_path = os.path.join(os.path.dirname(__file__), '.env')
-    if not os.path.exists(env_path):
-        return
-
-    with open(env_path, 'r', encoding='utf-8') as env_file:
-        for line in env_file:
-            line = line.strip()
-            if not line or line.startswith('#') or '=' not in line:
-                continue
-            key, value = line.split('=', 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            os.environ.setdefault(key, value)
-
-
-load_env_file()
+from db_config import (
+    DB_NAME,
+    ensure_prediction_columns,
+    get_mysql_connection,
+)
 
 app = Flask(__name__)
 app.secret_key = "smart_crop_farmer_app_secret"
@@ -289,6 +273,7 @@ MARKET_CROPS = (
     "Lentil", "Pomegranate", "Banana", "Mango", "Grapes", "Watermelon", "Muskmelon",
     "Apple", "Orange", "Papaya", "Jute", "Coffee",
 )
+MARKET_UNAVAILABLE_MESSAGE = "Live market price is temporarily unavailable. Please try again later."
 CROP_IMAGE_FILES = {
     "rice": "rice.jpg",
     "maize": "maize.jpg",
@@ -382,28 +367,10 @@ def inject_translations():
 
 
 def get_db_connection():
-    return mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-    )
-
-
-def create_database_if_needed():
-    connection = mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-    )
-    cursor = connection.cursor()
-    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
-    cursor.close()
-    connection.close()
+    return get_mysql_connection()
 
 
 def init_db():
-    create_database_if_needed()
     connection = get_db_connection()
     cursor = connection.cursor()
 
@@ -462,17 +429,18 @@ def init_db():
         """
     )
 
-    try:
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS username VARCHAR(50)")
-    except mysql.connector.Error:
-        pass
+    ensure_prediction_columns(cursor)
 
     connection.commit()
     cursor.close()
     connection.close()
 
 
-init_db()
+try:
+    init_db()
+except mysql.connector.Error:
+    app.logger.exception("MySQL database initialization failed for database %s", DB_NAME)
+    raise
 
 
 def login_required(function):
@@ -490,16 +458,6 @@ def save_prediction_to_db(username, nitrogen, phosphorus, potassium, temperature
     try:
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS username VARCHAR(50)")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS nitrogen FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS phosphorus FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS potassium FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS temperature FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS humidity FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS ph_value FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS rainfall FLOAT")
-        cursor.execute("ALTER TABLE crop_predictions ADD COLUMN IF NOT EXISTS crop_name VARCHAR(50)")
-
         query = """
             INSERT INTO crop_predictions
             (username, nitrogen, phosphorus, potassium, temperature, humidity, ph_value, rainfall, crop_name)
@@ -508,8 +466,9 @@ def save_prediction_to_db(username, nitrogen, phosphorus, potassium, temperature
         values = (username, nitrogen, phosphorus, potassium, temperature, humidity, ph_value, rainfall, crop_name)
         cursor.execute(query, values)
         connection.commit()
-    except mysql.connector.Error as error:
-        app.logger.error("MySQL prediction save failed: %s", error)
+    except mysql.connector.Error:
+        app.logger.exception("MySQL prediction save failed")
+        raise
     finally:
         if connection is not None and connection.is_connected():
             connection.close()
@@ -757,8 +716,21 @@ def market_trend_from_history(records, latest_record, days):
 
 
 def get_market_price(crop_name, location, state=None, district=None, market_name=None):
-    crop_name = (crop_name or "").strip()
-    crop_name = CROP_MARKET_NAMES.get(crop_name.casefold(), crop_name).title()
+    raw_crop_name = (crop_name or "").strip()
+    normalized_crop = re.sub(r"[^a-z0-9]", "", raw_crop_name.casefold())
+    crop_aliases = {
+        re.sub(r"[^a-z0-9]", "", alias.casefold()): canonical
+        for alias, canonical in CROP_MARKET_NAMES.items()
+    }
+    crop_name = crop_aliases.get(normalized_crop)
+    if crop_name is None:
+        crop_name = next(
+            (
+                crop for crop in MARKET_CROPS
+                if re.sub(r"[^a-z0-9]", "", crop.casefold()) == normalized_crop
+            ),
+            "",
+        )
     location = (location or "").strip()
     app.logger.info(
         "Market lookup requested: crop=%s location=%s state=%s district=%s",
@@ -768,35 +740,44 @@ def get_market_price(crop_name, location, state=None, district=None, market_name
         (district or "")[:80],
     )
 
-    if not crop_name or not location:
-        return None, "Enter a crop and a district or location to look up a mandi price."
+    if not crop_name:
+        app.logger.warning("Market lookup rejected an unsupported crop selection.")
+        return None, MARKET_UNAVAILABLE_MESSAGE
 
     data_gov_key = os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
+    if not data_gov_key:
+        app.logger.warning("Agmarknet market lookup skipped because its API key is not configured.")
+        return None, MARKET_UNAVAILABLE_MESSAGE
+
     if data_gov_key:
-        if not state or not district:
-            return None, (
-                "Agmarknet needs a district and state to find mandi records. "
-                "Enter a district or town and its state, then try again."
-            )
-        agmarknet_crop_name = AGMARKNET_CROP_NAMES.get(
-            crop_name.casefold(), crop_name
-        )
+        normalized_crop = re.sub(r"[^a-z0-9]", "", crop_name.casefold())
+        commodity_aliases = {
+            re.sub(r"[^a-z0-9]", "", alias.casefold()): commodity
+            for alias, commodity in AGMARKNET_CROP_NAMES.items()
+        }
+        agmarknet_crop_name = commodity_aliases.get(normalized_crop, crop_name)
         api_url = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
         params = {
             "api-key": data_gov_key,
             "format": "json",
             "limit": 1000,
             "filters[commodity]": agmarknet_crop_name,
-            "filters[state]": state,
             "sort[arrival_date]": "desc",
         }
+        if state:
+            params["filters[state]"] = state.strip()
         if district:
-            params["filters[district]"] = district
+            params["filters[district]"] = district.strip()
         if market_name:
-            params["filters[market]"] = market_name
+            params["filters[market]"] = market_name.strip()
 
         try:
-            response = requests.get(api_url, params=params, timeout=15)
+            response = requests.get(
+                api_url,
+                params=params,
+                headers={"User-Agent": "SmartCropApp/1.0"},
+                timeout=(5, 15),
+            )
             if response.status_code in (401, 403):
                 app.logger.warning("Agmarknet rejected the configured API key (HTTP %s).", response.status_code)
                 return None, (
@@ -855,16 +836,21 @@ def get_market_price(crop_name, location, state=None, district=None, market_name
                 len(records),
                 len(crop_records),
             )
-            crop_records = [
-                record for record in crop_records
-                if str(record.get("state", "")).strip().casefold() == state.casefold()
-                and str(record.get("district", "")).strip().casefold() == district.casefold()
-            ]
+            if state:
+                crop_records = [
+                    record for record in crop_records
+                    if str(record.get("state", "")).strip().casefold() == state.strip().casefold()
+                ]
+            if district:
+                crop_records = [
+                    record for record in crop_records
+                    if str(record.get("district", "")).strip().casefold() == district.strip().casefold()
+                ]
             if market_name:
                 crop_records = [
                     record for record in crop_records
                     if str(record.get("market", "")).strip().casefold()
-                    == market_name.casefold()
+                    == market_name.strip().casefold()
                 ]
 
             for record in crop_records:
@@ -921,10 +907,18 @@ def get_market_price(crop_name, location, state=None, district=None, market_name
                 "modal_price": latest["_modal_price"],
                 "market_name": market_name,
                 "market_district": latest.get("district") or district or "",
+                "market_state": latest.get("state") or state or "",
+                "commodity": latest.get("commodity") or agmarknet_crop_name,
+                "variety": latest.get("variety") or "",
                 "price_date": latest.get("arrival_date") or "",
-                "last_updated": datetime.now().astimezone().isoformat(timespec="minutes"),
+                "last_updated": (
+                    latest.get("updated_at")
+                    or payload.get("updated_date")
+                    or latest.get("arrival_date")
+                    or ""
+                ),
                 "price_unit": "₹/quintal",
-                "source": "data.gov.in — Agmarknet daily mandi prices",
+                "source": "Government agricultural market data (AGMARKNET via data.gov.in)",
                 "trend_7_days": market_trend_from_history(mandi_records, latest, 7),
                 "trend_30_days": market_trend_from_history(mandi_records, latest, 30),
                 "history": history,
@@ -954,190 +948,6 @@ def get_market_price(crop_name, location, state=None, district=None, market_name
                 "The government mandi data service returned invalid market data. "
                 "No price was shown; please try again later."
             )
-
-    api_url = os.environ.get("MARKET_API_URL", "").strip()
-    api_key = os.environ.get("MARKET_API_KEY", "").strip()
-
-    if not api_url:
-        app.logger.warning(
-            "Market data unavailable: configure DATA_GOV_IN_API_KEY or MARKET_API_URL."
-        )
-        return None, (
-            "Government mandi prices are not configured. Add a valid data.gov.in API key "
-            "as DATA_GOV_IN_API_KEY in the server .env file. No price was generated."
-        )
-
-    try:
-        headers = {"User-Agent": "SmartCropApp/1.0"}
-        params = {
-            "crop": crop_name,
-            "location": location,
-        }
-        if api_key:
-            params["api_key"] = api_key
-
-        response = requests.get(api_url, params=params, headers=headers, timeout=10)
-        if response.status_code in (401, 403):
-            return None, (
-                "The configured market API rejected its credentials. Check MARKET_API_KEY "
-                "in the server .env file."
-                if api_key
-                else "The configured market API requires credentials. Set MARKET_API_KEY "
-                "in the server .env file."
-            )
-        if response.status_code == 429:
-            return None, (
-                "The configured market data service is temporarily rate-limited. "
-                "Please try again later."
-            )
-        if response.status_code >= 500:
-            return None, (
-                "The configured market data service is temporarily unavailable. "
-                "Please try again later."
-            )
-        if response.status_code != 200:
-            app.logger.warning(
-                "Configured market API request failed with HTTP status %s.", response.status_code
-            )
-            return None, (
-                f"The configured market data service rejected the request "
-                f"(HTTP {response.status_code}). Check the crop and location."
-            )
-
-        try:
-            data = response.json()
-        except ValueError:
-            return None, (
-                "The configured market data service returned an unreadable response. "
-                "No price was shown; please try again later."
-            )
-        app.logger.info(
-            "Configured market API response received: http_status=%s payload_type=%s",
-            response.status_code,
-            type(data).__name__,
-        )
-        if not data:
-            return None, (
-                "The configured market data service returned no price records "
-                "for this crop and location."
-            )
-
-        market_record = None
-        if isinstance(data, list):
-            if data:
-                market_record = data[0]
-        elif isinstance(data, dict):
-            if "records" in data and isinstance(data["records"], list) and data["records"]:
-                market_record = data["records"][0]
-            elif "data" in data and isinstance(data["data"], list) and data["data"]:
-                market_record = data["data"][0]
-            else:
-                market_record = data
-
-        if market_record is None:
-            app.logger.info("Configured market API returned no matching record.")
-            return None, (
-                "The configured market data service returned no listing for this crop "
-                "and location. Try checking the crop and location."
-            )
-        if not isinstance(market_record, dict):
-            app.logger.warning("Configured market API returned a record in an unsupported format.")
-            return None, (
-                "The configured market data service returned a record in an unsupported format. "
-                "No price was shown."
-            )
-
-        def parse_price(*fields):
-            for field in fields:
-                value = market_record.get(field)
-                try:
-                    parsed = float(value) if value not in (None, "") else None
-                except (TypeError, ValueError):
-                    continue
-                if parsed is not None and math.isfinite(parsed) and parsed > 0:
-                    return parsed
-            return None
-
-        current_price = parse_price(
-            "price", "current_price", "market_price", "rate", "price_per_quintal", "modal_price"
-        )
-        market_name = (
-            market_record.get("market")
-            or market_record.get("mandi")
-            or market_record.get("market_name")
-            or market_record.get("location")
-        )
-        source = market_record.get("source") or market_record.get("api_source") or urlparse(api_url).netloc
-        price_date = market_record.get("date") or market_record.get("price_date") or market_record.get("updated_at")
-        trend_7 = market_record.get("trend_7_days") or market_record.get("trend7")
-        trend_30 = market_record.get("trend_30_days") or market_record.get("trend30")
-        price_unit = (
-            market_record.get("price_unit")
-            or market_record.get("unit")
-            or "₹/quintal"
-        )
-        history_records = (
-            market_record.get("history")
-            or market_record.get("historical_prices")
-            or market_record.get("price_history")
-            or []
-        )
-        history = market_history_from_records(history_records) if isinstance(history_records, list) else []
-
-        if current_price is None or not market_name or not source:
-            app.logger.warning(
-                "Configured market API response is missing a valid price, market name, or data source."
-            )
-            return None, (
-                "The configured market data service did not include a valid price and mandi name. "
-                "No price was shown for this incomplete listing."
-            )
-
-        return {
-            "crop_name": crop_name,
-            "current_price": current_price,
-            "minimum_price": parse_price("min_price", "minimum_price"),
-            "maximum_price": parse_price("max_price", "maximum_price"),
-            "modal_price": parse_price("modal_price") or current_price,
-            "market_name": market_name,
-            "price_date": price_date,
-            "last_updated": (
-                market_record.get("last_updated")
-                or market_record.get("updated_at")
-                or datetime.now().astimezone().isoformat(timespec="minutes")
-            ),
-            "price_unit": price_unit,
-            "source": source,
-            "trend_7_days": str(trend_7).capitalize() if trend_7 else None,
-            "trend_30_days": str(trend_30).capitalize() if trend_30 else None,
-            "history": history,
-            "future_estimates": estimate_future_market_prices(history),
-        }, None
-    except requests.Timeout:
-        app.logger.warning("Configured market API request timed out.")
-        return None, (
-            "The configured market data service took too long to respond. "
-            "Please try again later."
-        )
-    except requests.RequestException as error:
-        app.logger.warning(
-            "Configured market API request failed: error_type=%s",
-            type(error).__name__,
-        )
-        return None, (
-            "The configured market data service could not be reached. "
-            "Check your connection or try again later."
-        )
-    except (ValueError, TypeError, AttributeError) as error:
-        app.logger.warning(
-            "Configured market API response parsing failed: error_type=%s",
-            type(error).__name__,
-        )
-        return None, (
-            "The configured market data service returned invalid market data. "
-            "No price was shown; please try again later."
-        )
-
 
 def reverse_geocode_details(lat, lon):
     url = "https://nominatim.openstreetmap.org/reverse"
@@ -1198,45 +1008,31 @@ def resolve_market_location_details(location, latitude=None, longitude=None):
 
 def get_market_price_for_location(crop_name, location, state=None, market_name=None):
     if not os.environ.get("DATA_GOV_IN_API_KEY", "").strip():
-        return get_market_price(crop_name, location)
+        return None, MARKET_UNAVAILABLE_MESSAGE
 
-    try:
-        location_details = resolve_market_location_details(location)
-    except requests.Timeout:
-        app.logger.warning("Market location lookup timed out.")
-        return None, (
-            "The location lookup took too long. Check the district or town name "
-            "and try again."
-        )
-    except (requests.RequestException, ValueError, TypeError, KeyError) as error:
-        app.logger.warning(
-            "Market location resolution failed: error_type=%s",
-            type(error).__name__,
-        )
-        return None, (
-            "The district and state could not be confirmed for this location. "
-            "Enter a district or town and its state, then try again."
-        )
-
+    location_details = {}
+    if location:
+        try:
+            location_details = resolve_market_location_details(location)
+        except (requests.RequestException, ValueError, TypeError, KeyError) as error:
+            app.logger.warning(
+                "Market location resolution failed: error_type=%s",
+                type(error).__name__,
+            )
     state = (state or location_details.get("state") or "").strip()
-    district = location_details.get("district")
-    if not state or not district:
-        app.logger.info(
-            "Market location could not be matched to a state and district: location=%s state=%s",
-            location[:120],
-            state[:80],
-        )
-        return None, (
-            "A district and state are needed to find government mandi records. "
-            "Enter the district or town in Location and its state in State."
-        )
-    return get_market_price(
+    district = location_details.get("district") or location or None
+    if not state and not district:
+        app.logger.info("Market lookup is searching available national records for the selected crop.")
+    result, _ = get_market_price(
         crop_name,
         location,
         state=state,
         district=district,
         market_name=market_name,
     )
+    if result is None:
+        return None, MARKET_UNAVAILABLE_MESSAGE
+    return result, None
 
 
 def market_price_per_kg(market_data):
@@ -1703,7 +1499,7 @@ def register():
                     return redirect(url_for("login"))
             except mysql.connector.Error as error:
                 app.logger.error("Registration database operation failed: %s", error)
-                message = "Database error. Please try again later."
+                message = "Database temporarily unavailable. Please try again later."
             finally:
                 if connection is not None and connection.is_connected():
                     connection.close()
@@ -1738,7 +1534,7 @@ def login():
                     message = "User not found. Please register first."
             except mysql.connector.Error as error:
                 app.logger.error("Login database operation failed: %s", error)
-                message = "Database error. Please try again later."
+                message = "Database temporarily unavailable. Please try again later."
             finally:
                 if connection is not None and connection.is_connected():
                     connection.close()
@@ -1756,6 +1552,7 @@ def logout():
 def dashboard():
     history_rows = []
     latest = None
+    database_message = None
     user_id = session.get("user_id")
     if user_id is not None:
         connection = None
@@ -1776,12 +1573,7 @@ def dashboard():
             history_rows = cursor.fetchall()
         except mysql.connector.Error as error:
             app.logger.error("MySQL dashboard data read failed: %s", error)
-            return render_template(
-                "error.html",
-                message="Your farming dashboard is unavailable right now. Please try again later.",
-                translations=get_translations(),
-                language=get_language(),
-            ), 500
+            database_message = "Database temporarily unavailable."
         finally:
             if connection is not None and connection.is_connected():
                 connection.close()
@@ -1793,6 +1585,7 @@ def dashboard():
         language=get_language(),
         history_rows=history_rows,
         latest=latest,
+        database_message=database_message,
         is_authenticated=user_id is not None,
         market_crops=MARKET_CROPS,
         selected_crop=request.args.get("crop_name", "Rice"),
@@ -1822,10 +1615,10 @@ def crop_history():
         app.logger.error("MySQL crop history read failed: %s", error)
         return render_template(
             "error.html",
-            message="Crop history is unavailable right now. Please try again later.",
+            message="Database temporarily unavailable.",
             translations=get_translations(),
             language=get_language(),
-        ), 500
+        ), 503
     finally:
         if connection is not None and connection.is_connected():
             connection.close()
@@ -1928,23 +1721,27 @@ def predict():
     }
 
     username = session.get("username", "guest")
-    save_prediction_to_db(username, nitrogen, phosphorus, potassium, temperature, humidity, ph_value, rainfall, prediction)
     history_id = None
+    database_message = None
     user_id = session.get("user_id")
-    if user_id is not None:
-        try:
+    try:
+        save_prediction_to_db(
+            username, nitrogen, phosphorus, potassium, temperature, humidity,
+            ph_value, rainfall, prediction,
+        )
+        if user_id is not None:
             history_id = save_crop_history(
                 user_id, nitrogen, phosphorus, potassium, temperature, humidity,
                 ph_value, rainfall, prediction, location,
             )
-        except mysql.connector.Error as error:
-            app.logger.error("MySQL crop history save failed: %s", error)
-            return render_template(
-                "error.html",
-                message="Your recommendation was generated, but it could not be saved to crop history. Please try again later.",
-                translations=get_translations(),
-                language=get_language(),
-            )
+    except mysql.connector.Error:
+        app.logger.exception("MySQL crop recommendation save failed")
+        return render_template(
+            "error.html",
+            message="Database temporarily unavailable. The crop recommendation could not be saved. Please try again later.",
+            translations=get_translations(),
+            language=get_language(),
+        ), 503
 
     message = "This crop is recommended for your soil and weather values."
     crop_advice_key = f"crop_advice_{str(prediction).strip().lower()}"
@@ -2026,6 +1823,7 @@ def predict():
         result_labels=get_translations(),
         language=get_language(),
         history_id=history_id,
+        database_message=database_message,
         location=location,
         latitude=latitude_value,
         longitude=longitude_value,
@@ -2077,16 +1875,8 @@ def recommendation_data():
     state = location_details.get("state")
     district = location_details.get("district")
     needs_market_location = (
-        (
-            os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
-            and (not state or not district)
-        )
-        or (
-            os.environ.get("MARKET_API_URL", "").strip()
-            and latitude is not None
-            and not location_details.get("location")
-            and not location
-        )
+        os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
+        and (not state or not district)
     )
     if needs_market_location:
         try:
@@ -2103,6 +1893,7 @@ def recommendation_data():
     district = district or location_details.get("district")
     history_id_value = data.get("history_id")
     user_id = session.get("user_id")
+    database_message = None
     if history_id_value is not None and user_id is not None and resolved_location:
         if isinstance(history_id_value, bool):
             return jsonify({"success": False, "message": "Invalid crop history reference."}), 400
@@ -2116,9 +1907,7 @@ def recommendation_data():
             update_crop_history_location(history_id, user_id, resolved_location)
         except mysql.connector.Error as error:
             app.logger.error("MySQL crop history location update failed: %s", error)
-            return jsonify(
-                {"success": False, "message": "Location could not be saved to crop history."}
-            ), 500
+            database_message = "Database temporarily unavailable. The location was not saved to crop history."
 
     market_data, market_error = get_market_price(crop, resolved_location, state=state, district=district)
     if market_data is None:
@@ -2144,7 +1933,8 @@ def recommendation_data():
             "weather": weather_result,
             "weather_error": weather_error,
             "market": market_data,
-            "market_error": market_error,
+            "market_error": None if market_data else MARKET_UNAVAILABLE_MESSAGE,
+            "database_message": database_message,
         }
     )
 
@@ -2562,6 +2352,7 @@ def weather():
     check_weather_advice = None
     check_weather_alerts = []
     recommendation = {}
+    database_message = None
     user_id = session.get("user_id")
     if user_id is not None:
         connection = None
@@ -2589,7 +2380,18 @@ def weather():
                 }
         except mysql.connector.Error as error:
             app.logger.error("Weather page could not load the farmer's latest crop context: %s", error)
-            error_message = "Your saved crop location is unavailable right now. Please try again later."
+            database_message = "Database temporarily unavailable. Showing any crop details available in this session."
+            session_context = session.get("farm_assistant_context", {})
+            if isinstance(session_context, dict):
+                recommendation = {
+                    "crop": session_context.get("crop"),
+                    "location": session_context.get("location") or "",
+                    "temperature": session_context.get("temperature"),
+                    "humidity": session_context.get("humidity"),
+                    "rainfall": session_context.get("rainfall"),
+                    "latitude": session_context.get("latitude"),
+                    "longitude": session_context.get("longitude"),
+                }
         finally:
             if connection is not None and connection.is_connected():
                 connection.close()
@@ -2608,9 +2410,9 @@ def weather():
 
     location = str(recommendation.get("location") or "").strip()
     crop_name = recommendation.get("crop")
-    if not error_message and not location:
+    if not location:
         error_message = "Enter a location with a crop recommendation first to see your local weather. The Weather page does not ask you to enter it again."
-    elif not error_message:
+    else:
         weather_result, error_message = get_weather_for_location(
             location,
             recommendation.get("latitude"),
@@ -2689,6 +2491,7 @@ def weather():
         farming_advice=farming_advice,
         forecast_outlook=forecast_outlook,
         weather_check_advice=weather_check_advice,
+        database_message=database_message,
         translations=get_translations(),
         language=get_language(),
     )
@@ -2800,6 +2603,7 @@ def crop_risk():
 @app.route("/market", methods=["GET", "POST"])
 def market():
     recommendation = {}
+    database_message = None
     if session.get("user_id") is not None:
         connection = None
         try:
@@ -2820,6 +2624,7 @@ def market():
                 recommendation = {"crop": row[0], "location": row[1] or ""}
         except mysql.connector.Error as error:
             app.logger.error("Market page could not load the farmer's latest crop context: %s", error)
+            database_message = "Database temporarily unavailable. Enter crop and location details to continue."
         finally:
             if connection is not None and connection.is_connected():
                 connection.close()
@@ -2842,20 +2647,8 @@ def market():
     selected_state = request.values.get("state", "").strip()
     selected_market = request.values.get("market_name", "").strip()
     market_data = None
-    market_provider_configured = bool(
-        os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
-        or os.environ.get("MARKET_API_URL", "").strip()
-    )
-    if not market_provider_configured:
-        market_message = "Live mandi price data is currently unavailable. Please try again later."
-    elif not selected_crop:
-        market_message = (
-            "Enter/select a crop to view available market price information."
-        )
-    elif not selected_location:
-        market_message = (
-            "Enter a district or town in Location and its state to check reported mandi prices."
-        )
+    if not selected_crop:
+        market_message = "Select a crop to check live mandi prices."
     else:
         market_data, market_error = get_market_price_for_location(
             selected_crop,
@@ -2863,10 +2656,7 @@ def market():
             state=selected_state or None,
             market_name=selected_market or None,
         )
-        market_message = None if market_data else market_error or (
-            "No matching reported mandi price is available for these details. "
-            "Check the crop, district, state, and market, then try again."
-        )
+        market_message = None if market_data else MARKET_UNAVAILABLE_MESSAGE
 
     return render_template(
         "market.html",
@@ -2877,6 +2667,7 @@ def market():
         selected_state=selected_state,
         selected_market=selected_market,
         market_data=market_data,
+        database_message=database_message,
         translations=get_translations(),
         language=get_language(),
     )
@@ -2885,6 +2676,7 @@ def market():
 @app.route("/profit", methods=["GET", "POST"])
 def profit():
     latest = None
+    database_message = None
     if session.get("user_id") is not None:
         connection = None
         try:
@@ -2903,12 +2695,7 @@ def profit():
             latest = cursor.fetchone()
         except mysql.connector.Error as error:
             app.logger.error("MySQL profit context read failed: %s", error)
-            return render_template(
-                "error.html",
-                message="Your saved crop information is unavailable right now. Please try again later.",
-                translations=get_translations(),
-                language=get_language(),
-            ), 500
+            database_message = "Database temporarily unavailable. Enter crop and location details to continue."
         finally:
             if connection is not None and connection.is_connected():
                 connection.close()
@@ -2998,7 +2785,7 @@ def profit():
                         connection.commit()
                     except mysql.connector.Error as error:
                         app.logger.error("MySQL profit estimate save failed: %s", error)
-                        form_error = "The estimate was calculated but could not be saved to your dashboard."
+                        form_error = "Database temporarily unavailable. The estimate was calculated but could not be saved."
                     finally:
                         if connection is not None and connection.is_connected():
                             connection.close()
@@ -3023,6 +2810,7 @@ def profit():
         market_data=market_data,
         market_message=market_message,
         form_error=form_error,
+        database_message=database_message,
         translations=get_translations(),
         language=get_language(),
     )
